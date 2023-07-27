@@ -2,7 +2,6 @@
 
 **SteadyCoin - Algorithmically Stable Stablecoin on Polygon ZK-EVM**
 
-
 ## Overview
 
 SteadyCoin (STC) is an algorithmically stable stablecoin built on the Polygon ZK-EVM blockchain. It aims to provide a stable store of value by pegging its value to the average price of a basket of goods and services. The stability of SteadyCoin is achieved through an algorithmic mechanism, and it is exogenously collateralized to ensure its value is backed by real-world assets. This documentation provides an overview of the SteadyCoin ecosystem, its key components, and its features.
