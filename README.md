@@ -16,7 +16,7 @@ The ERC20 smart contract serves as the core of the SteadyCoin token. It adheres 
 
 The Engines smart contract is a crucial component of SteadyCoin's stability mechanism. It ensures that the value of 1 STC token remains equal to the average price of the basket of goods and services. The Engines contract consumes events that provide the average price data and applies the necessary adjustments to maintain the peg. By controlling the token supply and dynamically adjusting it based on the average price, the Engines contract plays a vital role in stabilizing SteadyCoin.
 
-### 3. Dynamic NFT Contract
+### 3. Dynamic NFT Contract with ERC1155
 
 The Dynamic NFT contract houses the basket of goods and services. While it acts as a non-fungible token (NFT) contract, it is unique in its dynamic nature. The NFT token represents the collection of real-world assets, goods, and services that form the basis for calculating the average price. Through this contract, the market can aggregate and calculate the average price, which is then fed into the Engines contract for stability adjustments.
 
