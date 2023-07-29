@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
+
 pragma solidity 0.8.19;
 
 /*
  * @title SteadyCoin
+ * @description ERC20 token that can be minted and burned by the SteadyEngine smart contract.
  * @author ricogustavo
  * @team Futurify x EpicStartups
  *
@@ -17,9 +19,6 @@ contract SteadyCoin is ERC20Burnable, Ownable {
     error SteadyCoin__NotZeroAddress();
     error SteadyCoin__AddressesAndAmountsMustBeEqualLength();
 
-    event SteadyCoin__Burn(address indexed burner, uint256 amount);
-    event SteadyCoin__Mint(address indexed to, uint256 amount);
-
     constructor() ERC20("SteadyCoin", "STC") {}
 
     function burn(uint256 _amount) public override onlyOwner {
@@ -31,7 +30,6 @@ contract SteadyCoin is ERC20Burnable, Ownable {
             revert SteadyCoin__BurnAmountExceedsBalance();
         }
         super.burn(_amount);
-        emit SteadyCoin__Burn(msg.sender, _amount);
     }
 
     function mint(
@@ -45,7 +43,6 @@ contract SteadyCoin is ERC20Burnable, Ownable {
             revert SteadyCoin__AmountMustBeMoreThanZero();
         }
         _mint(_to, _amount);
-        emit SteadyCoin__Mint(_to, _amount);
         return true;
     }
 }
