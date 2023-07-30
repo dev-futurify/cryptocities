@@ -1,5 +1,5 @@
 {
-  "name": "stablecoin_cryptoconomy",
+  "name": "cryptocities",
   "devDependencies": {
     "@chainlink/contracts": "^0.6.1",
     "@nomicfoundation/hardhat-toolbox": "^3.0.0",
