@@ -5,6 +5,17 @@ async function main() {
   await steadyCoin.waitForDeployment();
 
   console.log(`SteadyCoin deployed to ${steadyCoin.address}`);
+
+  const steadyMarketplace = await ethers.deployContract("SteadyMarketplace");
+
+  console.log(`SteadyMarketplace deployed to ${steadyMarketplace.address}`);
+
+  const steadyEngine = await ethers.deployContract("SteadyEngine", [
+    steadyCoin.address,
+    steadyMarketplace.address,
+  ]);
+
+  console.log(`SteadyEngine deployed to ${steadyEngine.address}`);
 }
 
 main().catch((error) => {
