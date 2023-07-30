@@ -26,7 +26,6 @@ interface ICryptoCitiesMarketplace {
 }
 
 contract SteadyEngine is ReentrancyGuard {
-    error SteadyEngine__TokenAddressesAndPriceFeedAddressesAmountsDontMatch();
     error SteadyEngine__NeedsMoreThanZero();
     error SteadyEngine__TokenNotAllowed(address token);
     error SteadyEngine__TransferFailed();
@@ -81,25 +80,11 @@ contract SteadyEngine is ReentrancyGuard {
         _;
     }
 
-    constructor(
-        address[] memory tokenAddresses,
-        address[] memory priceFeedAddresses,
-        address stcAddress,
-        address cryptoCitiesMarketplaceAddress
-    ) {
+    constructor(address stcAddress, address cryptoCitiesMarketplaceAddress) {
         i_marketplace = ICryptoCitiesMarketplace(
             cryptoCitiesMarketplaceAddress
         );
 
-        if (tokenAddresses.length != priceFeedAddresses.length) {
-            revert SteadyEngine__TokenAddressesAndPriceFeedAddressesAmountsDontMatch();
-        }
-        // These feeds will be the USD pairs
-        // For example ETH / USD or MKR / USD
-        for (uint256 i = 0; i < tokenAddresses.length; i++) {
-            s_priceFeeds[tokenAddresses[i]] = priceFeedAddresses[i];
-            s_collateralTokens.push(tokenAddresses[i]);
-        }
         i_stc = SteadyCoin(stcAddress);
     }
 
