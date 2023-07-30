@@ -13,7 +13,17 @@ pragma solidity 0.8.19;
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SteadyCoin} from "./SteadyCoin.sol";
-import {GnSLib, AggregatorV3Interface} from "./libraries/GnSLib.sol";
+
+interface ICryptoCitiesMarketplace {
+    function getFloorPrice(
+        address marketplaceAddress
+    ) external view returns (uint256);
+
+    function getFloorPriceByCategory(
+        address marketplaceAddress,
+        string memory _category
+    ) external view returns (uint256);
+}
 
 contract SteadyEngine is ReentrancyGuard {
     error SteadyEngine__TokenAddressesAndPriceFeedAddressesAmountsDontMatch();
@@ -25,9 +35,8 @@ contract SteadyEngine is ReentrancyGuard {
     error SteadyEngine__HealthFactorOk();
     error SteadyEngine__HealthFactorNotImproved();
 
-    using GnSLib for AggregatorV3Interface;
-
     SteadyCoin private immutable i_stc;
+    ICryptoCitiesMarketplace private immutable i_marketplace;
 
     uint256 private constant LIQUIDATION_THRESHOLD = 50; // This means we need to be 200% over-collateralized
     uint256 private constant LIQUIDATION_BONUS = 10; // This means we get assets at a 10% discount when liquidating
@@ -75,8 +84,13 @@ contract SteadyEngine is ReentrancyGuard {
     constructor(
         address[] memory tokenAddresses,
         address[] memory priceFeedAddresses,
-        address stcAddress
+        address stcAddress,
+        address cryptoCitiesMarketplaceAddress
     ) {
+        i_marketplace = ICryptoCitiesMarketplace(
+            cryptoCitiesMarketplaceAddress
+        );
+
         if (tokenAddresses.length != priceFeedAddresses.length) {
             revert SteadyEngine__TokenAddressesAndPriceFeedAddressesAmountsDontMatch();
         }
@@ -298,7 +312,7 @@ contract SteadyEngine is ReentrancyGuard {
         return _getAccountInformation(user);
     }
 
-    function getBasketvalue(
+    function getBasketValue(
         address token,
         uint256 amount // in WEI
     ) external view returns (uint256) {}
