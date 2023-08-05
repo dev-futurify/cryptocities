@@ -1,6 +1,6 @@
 # Cryptocities
 
-**Decentralized blockchain economies on Polygon ZK-EVM**
+**Decentralized blockchain economies**
 
 ## Overview
 
