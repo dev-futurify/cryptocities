@@ -2,6 +2,8 @@ import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "dotenv/config";
 
+// @url: quicknode HTTP provider url
+// @accounts: DO NOT USE SAME ACCOUNT FOR TESTING AND MAINET DEPLOYER
 const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.19",
@@ -13,18 +15,18 @@ const config: HardhatUserConfig = {
     },
   },
   networks: {
-    mumbai: {
-      url: process.env.MUMBAI_RPC_URL,
+    zkEVM_testnet: {
+      url: process.env.ZKEVM_TESTNET_RPC_URL,
       accounts: [process.env.TEST_WALLET_PRIVATE_KEY || ""],
     },
-    mainnet: {
-      chainId: 137,
-      url: process.env.POLYGON_RPC_URL,
+    zkEVM_mainnet: {
+      chainId: 1101,
+      url: process.env.ZKEVM_MAINNET_RPC_URL,
       accounts: [process.env.WALLET_PRIVATE_KEY || ""],
     },
   },
   etherscan: {
-    apiKey: process.env.POLYGONSCAN_KEY,
+    apiKey: process.env.ZKEVM_POLYGONSCAN_KEY,
   },
 };
 
