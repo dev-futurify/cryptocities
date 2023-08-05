@@ -57,8 +57,6 @@ internal & private view & pure functions
 external & public view & pure functions
 ```
 
-1. 
-
 ### Steady Marketplace (Data source for SteadyCoin Engine)
 
 1. purchase items/products via NFT - user can track what items/products they have bought/consumed and at the same time they can track their expenses (view history) on specific vendors?
