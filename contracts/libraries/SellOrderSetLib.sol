@@ -16,6 +16,7 @@ library SellOrderSetLib {
         address listedBy; // Address of the seller
         uint256 quantity; // Quantity of tokens being sold
         uint256 unitPrice; // Unit price of the tokens
+        uint8 category; // Category based on the "basket of goods and services"
     }
 
     // Set structure containing a mapping of seller addresses to indices in the keyList array, and an array of SellOrders.
@@ -46,6 +47,12 @@ library SellOrderSetLib {
             !exists(self, key),
             "OrderSetLib(103) - Key already exists in the set."
         );
+        // Check if the category is between 1 and 12.
+        require(
+            key.category > 0 && key.category < 13,
+            "OrderSetLib(104) - Category must be between 1 and 12."
+        );
+
         // If all checks pass, add the SellOrder to the keyList array.
         self.keyList.push(key);
         // Update the keyPointers mapping with the index of the newly added SellOrder.
@@ -164,5 +171,44 @@ library SellOrderSetLib {
         Set storage self
     ) internal view returns (SellOrder[] storage) {
         return self.keyList;
+    }
+
+    /**
+     * Get the total quantity of tokens being sold in the set
+     *
+     * @param self Set The set of sell orders
+     * @return uint256 The total quantity of tokens being sold in the set
+     */
+    function totalSales(Set storage self) internal view returns (uint256) {
+        uint256 floorPrice = 0;
+        for (uint256 i = 0; i < self.keyList.length; i++) {
+            if (self.keyList[i].unitPrice > floorPrice) {
+                floorPrice = self.keyList[i].unitPrice;
+            }
+        }
+        return floorPrice;
+    }
+
+    /**
+     * Get the total quantity of tokens being sold in the set by a specific category
+     *
+     * @param self Set The set of sell orders
+     * @param category uint256 The category to filter by
+     * @return uint256 The total quantity of tokens being sold in the set by a specific category
+     */
+    function totalSalesByCategory(
+        Set storage self,
+        uint8 category
+    ) internal view returns (uint256) {
+        uint256 floorPrice = 0;
+        for (uint256 i = 0; i < self.keyList.length; i++) {
+            if (
+                self.keyList[i].unitPrice > floorPrice &&
+                self.keyList[i].category == category
+            ) {
+                floorPrice = self.keyList[i].unitPrice;
+            }
+        }
+        return floorPrice;
     }
 }

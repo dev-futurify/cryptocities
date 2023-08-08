@@ -12,11 +12,16 @@ pragma solidity 0.8.19;
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {SellOrderSetLib} from "./libraries/SellOrderSetLib.sol";
 
 contract SteadyMarketplace is Context {
+    // Use SafeMath library for uint256 arithmetic operations
     using SafeMath for uint256;
+    // Use SellOrderSetLib for SellOrderSetLib.Set operations
     using SellOrderSetLib for SellOrderSetLib.Set;
 
     // Mapping to store sell orders for different NFTs
@@ -33,7 +38,9 @@ contract SteadyMarketplace is Context {
         // Number of tokens for sale
         uint256 noOfTokensForSale,
         // Unit price of each token
-        uint256 unitPrice
+        uint256 unitPrice,
+        // Category of the NFT
+        uint8 category
     );
 
     // Event to indicate a token is unlisted from sale
@@ -67,21 +74,22 @@ contract SteadyMarketplace is Context {
      *
      * @param nftId          - The ID of the NFT to be sold.
      * @param contractAddress - The address of the NFT's contract.
+     * @param nftType        - The type of the NFT, either 'erc721' or 'erc1155'.
      * @param unitPrice      - The price of a single NFT in wei.
      * @param noOfTokensForSale - The number of NFTs being sold.
+     * @param category       - The category of the NFT.
      */
 
     function createSellOrder(
         uint256 nftId,
         address contractAddress,
+        string memory nftType,
         uint256 unitPrice,
-        uint256 noOfTokensForSale
+        uint256 noOfTokensForSale,
+        uint8 category
     ) external {
         // Require that the unit price of each token must be greater than 0
-        require(
-            unitPrice > 0,
-            "SteadyMarketplace: Price must be greater than 0."
-        );
+        require(unitPrice > 0, "NFTTrade: Price must be greater than 0.");
 
         // Get the unique identifier for the sell order
         bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
@@ -92,28 +100,58 @@ contract SteadyMarketplace is Context {
         // Require that the token is not already listed for sale by the same owner
         require(
             !nftOrders.orderExistsForAddress(_msgSender()),
-            "SteadyMarketplace: Token is already listed for sale by the given owner"
+            "NFTTrade: Token is already listed for sale by the given owner"
         );
 
-        // Get the ERC1155 contract
-        IERC1155 tokenContract = IERC1155(contractAddress);
+        // Check if the NFT token is an ERC721 or ERC1155 token
+        if (
+            keccak256(abi.encodePacked(nftType)) ==
+            keccak256(abi.encodePacked("erc721"))
+        ) {
+            // Get the ERC721 contract
+            IERC721 tokenContract = IERC721(contractAddress);
 
-        // Require that the caller has approved the SteadyMarketplace contract for token transfer
-        require(
-            tokenContract.isApprovedForAll(_msgSender(), address(this)),
-            "SteadyMarketplace: Caller has not approved SteadyMarketplace contract for token transfer."
-        );
+            // Require that the caller has approved the NFTTrade contract for token transfer
+            require(
+                tokenContract.isApprovedForAll(_msgSender(), address(this)),
+                "NFTTrade: Caller has not approved NFTTrade contract for token transfer."
+            );
 
-        // Require that the caller has sufficient balance of the NFT token
-        require(
-            tokenContract.balanceOf(_msgSender(), nftId) >= noOfTokensForSale,
-            "SteadyMarketplace: Insufficient token balance."
-        );
+            // Require that the caller owns the NFT token
+            require(
+                tokenContract.ownerOf(nftId) == _msgSender(),
+                "NFTTrade: Caller does not own the token."
+            );
+        } else if (
+            keccak256(abi.encodePacked(nftType)) ==
+            keccak256(abi.encodePacked("erc1155"))
+        ) {
+            // Get the ERC1155 contract
+            IERC1155 tokenContract = IERC1155(contractAddress);
+
+            // Require that the caller has approved the NFTTrade contract for token transfer
+            require(
+                tokenContract.isApprovedForAll(_msgSender(), address(this)),
+                "NFTTrade: Caller has not approved NFTTrade contract for token transfer."
+            );
+
+            // Require that the caller has sufficient balance of the NFT token
+            require(
+                tokenContract.balanceOf(_msgSender(), nftId) >=
+                    noOfTokensForSale,
+                "NFTTrade: Insufficient token balance."
+            );
+        } else {
+            // Revert if the NFT token is not of type ERC721 or ERC1155
+            revert("NFTTrade: Unsupported token type.");
+        }
+
         // Create a new sell order using the SellOrder constructor
         SellOrderSetLib.SellOrder memory o = SellOrderSetLib.SellOrder(
             _msgSender(),
             noOfTokensForSale,
-            unitPrice
+            unitPrice,
+            category
         );
         nftOrders.insert(o);
 
@@ -123,7 +161,8 @@ contract SteadyMarketplace is Context {
             nftId,
             contractAddress,
             noOfTokensForSale,
-            unitPrice
+            unitPrice,
+            category
         );
     }
 
@@ -143,7 +182,7 @@ contract SteadyMarketplace is Context {
         // Ensure that the sell order exists for the caller.
         require(
             nftOrders.orderExistsForAddress(_msgSender()),
-            "SteadyMarketplace: Given token is not listed for sale by the owner."
+            "NFTTrade: Given token is not listed for sale by the owner."
         );
 
         // Remove the sell order from the set.
@@ -158,6 +197,7 @@ contract SteadyMarketplace is Context {
      *
      * @param nftId - unique identifier of the NFT token.
      * @param contractAddress - address of the NFT contract that holds the token.
+     * @param nftType - type of the NFT token, either 'erc721' or 'erc1155'.
      * @param noOfTokensToBuy - number of tokens the buyer wants to purchase.
      * @param tokenOwner - address of the seller who is selling the token.
      */
@@ -165,6 +205,7 @@ contract SteadyMarketplace is Context {
     function createBuyOrder(
         uint256 nftId,
         address contractAddress,
+        string memory nftType, // 'erc721' or 'erc1155'
         uint256 noOfTokensToBuy,
         address payable tokenOwner
     ) external payable {
@@ -177,7 +218,7 @@ contract SteadyMarketplace is Context {
         // Check if the token owner has a sell order for the given NFT.
         require(
             nftOrders.orderExistsForAddress(tokenOwner),
-            "SteadyMarketplace: Given token is not listed for sale by the owner."
+            "NFTTrade: Given token is not listed for sale by the owner."
         );
 
         // Get the sell order for the given NFT by the token owner.
@@ -188,33 +229,56 @@ contract SteadyMarketplace is Context {
         // Validate that the required buy quantity is available for sale
         require(
             sellOrder.quantity >= noOfTokensToBuy,
-            "SteadyMarketplace: Attempting to buy more than available for sale."
+            "NFTTrade: Attempting to buy more than available for sale."
         );
 
         // Validate that the buyer provided enough funds to make the purchase.
         uint256 buyPrice = sellOrder.unitPrice.mul(noOfTokensToBuy);
         require(
             msg.value >= buyPrice,
-            "SteadyMarketplace: Less ETH provided for the purchase."
+            "NFTTrade: Less ETH provided for the purchase."
         );
 
-        // Get the IERC1155 contract
-        IERC1155 tokenContract = IERC1155(contractAddress);
+        if (
+            keccak256(abi.encodePacked(nftType)) ==
+            keccak256(abi.encodePacked("erc721"))
+        ) {
+            // Get the ERC721 contract
+            IERC721 tokenContract = IERC721(contractAddress);
 
-        // Require that the caller has approved the SteadyMarketplace contract for token transfer
-        require(
-            tokenContract.isApprovedForAll(tokenOwner, address(this)),
-            "SteadyMarketplace: Seller has removeed SteadyMarketplace contracts approval for token transfer."
-        );
+            // Require that the caller has approved the NFTTrade contract for token transfer
+            require(
+                tokenContract.isApprovedForAll(tokenOwner, address(this)),
+                "NFTTrade: Seller has removeed NFTTrade contracts approval for token transfer."
+            );
 
-        // Transfer the specified number of tokens from the token owner to the buyer.
-        tokenContract.safeTransferFrom(
-            tokenOwner,
-            _msgSender(),
-            nftId,
-            noOfTokensToBuy,
-            ""
-        );
+            // Transfer ownership of the NFT from the token owner to the buyer.
+            tokenContract.safeTransferFrom(tokenOwner, _msgSender(), nftId);
+        } else if (
+            keccak256(abi.encodePacked(nftType)) ==
+            keccak256(abi.encodePacked("erc1155"))
+        ) {
+            // Get the IERC1155 contract
+            IERC1155 tokenContract = IERC1155(contractAddress);
+
+            // Require that the caller has approved the NFTTrade contract for token transfer
+            require(
+                tokenContract.isApprovedForAll(tokenOwner, address(this)),
+                "NFTTrade: Seller has removeed NFTTrade contracts approval for token transfer."
+            );
+
+            // Transfer the specified number of tokens from the token owner to the buyer.
+            tokenContract.safeTransferFrom(
+                tokenOwner,
+                _msgSender(),
+                nftId,
+                noOfTokensToBuy,
+                ""
+            );
+        } else {
+            // Revert if the NFT type is unsupported.
+            revert("NFTTrade: Unsupported token type.");
+        }
 
         // Send the specified value of Ether from the buyer to the token owner
         bool sent = tokenOwner.send(msg.value);
@@ -281,7 +345,39 @@ contract SteadyMarketplace is Context {
         }
 
         // Else, return empty SellOrder
-        return SellOrderSetLib.SellOrder(address(0), 0, 0);
+        return SellOrderSetLib.SellOrder(address(0), 0, 0, 0);
+    }
+
+    /**
+     * getFloorPrice function returns the total sales on all categories
+     * @param nftId unique identifier of the token
+     * @param contractAddress address of the contract that holds the token
+     * @return total sales on all categories
+     */
+    function getFloorPrice(
+        uint256 nftId,
+        address contractAddress
+    ) external view returns (uint256) {
+        bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
+        SellOrderSetLib.Set storage nftOrders = orders[orderId];
+        return nftOrders.totalSales();
+    }
+
+    /**
+     * getTotalSalesBasedOnCategory function returns the total sales on a given category
+     * @param nftId unique identifier of the token
+     * @param contractAddress address of the contract that holds the token
+     * @param category category of the token
+     * @return total sales on a given category
+     */
+    function getTotalSalesBasedOnCategory(
+        uint256 nftId,
+        address contractAddress,
+        uint8 category
+    ) external view returns (uint256) {
+        bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
+        SellOrderSetLib.Set storage nftOrders = orders[orderId];
+        return nftOrders.totalSalesByCategory(category);
     }
 
     // _getOrdersMapId function generates the unique identifier for a given NFT id and contract address
@@ -293,24 +389,4 @@ contract SteadyMarketplace is Context {
     ) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(contractAddress, nftId));
     }
-
-    /**
-     * getFloorPrice: Get the floor price of a token
-     * @param contractAddress address of the contract that holds the token
-     * @return floor price of the token
-     */
-    function getFloorPrice(
-        address contractAddress
-    ) external view returns (uint256) {}
-
-    /**
-     * getFloorPriceByCategory: Get the floor price of a token by category
-     * @param contractAddress address of the contract that holds the token
-     * @param category category of the token
-     * @return floor price of the token
-     */
-    function getFloorPriceByCategory(
-        address contractAddress,
-        string memory category
-    ) external view returns (uint256) {}
 }
