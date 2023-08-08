@@ -174,41 +174,38 @@ library SellOrderSetLib {
     }
 
     /**
-     * Get the total quantity of tokens being sold in the set
+     * Get the total cost of tokens being sold in the set
      *
      * @param self Set The set of sell orders
-     * @return uint256 The total quantity of tokens being sold in the set
+     * @return uint256 The total cost of tokens being sold in the set
      */
     function totalSales(Set storage self) internal view returns (uint256) {
-        uint256 floorPrice = 0;
+        uint256 totalCost = 0;
         for (uint256 i = 0; i < self.keyList.length; i++) {
-            if (self.keyList[i].unitPrice > floorPrice) {
-                floorPrice = self.keyList[i].unitPrice;
-            }
+            totalCost += self.keyList[i].quantity * self.keyList[i].unitPrice;
         }
-        return floorPrice;
+        return totalCost;
     }
 
     /**
-     * Get the total quantity of tokens being sold in the set by a specific category
+     * Get the total cost of tokens being sold in the set by a specific category
      *
      * @param self Set The set of sell orders
      * @param category uint256 The category to filter by
-     * @return uint256 The total quantity of tokens being sold in the set by a specific category
+     * @return uint256 The total cost of tokens being sold in the set by a specific category
      */
     function totalSalesByCategory(
         Set storage self,
         uint8 category
     ) internal view returns (uint256) {
-        uint256 floorPrice = 0;
+        uint256 totalCost = 0;
         for (uint256 i = 0; i < self.keyList.length; i++) {
-            if (
-                self.keyList[i].unitPrice > floorPrice &&
-                self.keyList[i].category == category
-            ) {
-                floorPrice = self.keyList[i].unitPrice;
+            if (self.keyList[i].category == category) {
+                totalCost +=
+                    self.keyList[i].quantity *
+                    self.keyList[i].unitPrice;
             }
         }
-        return floorPrice;
+        return totalCost;
     }
 }
