@@ -2,6 +2,12 @@
 
 **Decentralized blockchain economies**
 
+- The GOAL is to run everything is decentralized way, thus everything will be running `ON-CHAIN`!
+    - only `CRON JOB (automated script)` and `client` will be running with `OFF-CHAIN` solutions as smart contracts are not self-executing, meaning their code will not run and make state changes on a blockchain until triggered by an on-chain transaction - as for now.
+        - cron job: to trigger the methods needed (periodically) for the `engine` to do its thing.
+            - this might be one of the option to run this cron job: https://chain.link/automation
+        - client: to serve the frontend for the marketplace and wallet.
+
 ## Overview
 
 SteadyCoin (STC) is an algorithmically stable stablecoin built on the Polygon ZK-EVM blockchain. It aims to provide a stable store of value by pegging its value to the average price of a basket of goods and services. The stability of SteadyCoin is achieved through an algorithmic mechanism, and it is exogenously collateralized to ensure its value is backed by real-world assets. This documentation provides an overview of the SteadyCoin ecosystem, its key components, and its features.
@@ -53,6 +59,6 @@ SteadyCoin represents a novel approach to stablecoin design, leveraging algorith
 
 References:
 
-1. Cryptocitiesy: https://docs.google.com/document/d/1dOsyn1y-sQxV-P4S8tFBFoUEuzfMFfAou0bUEeE49xA
+1. Cryptocities: https://docs.google.com/document/d/1dOsyn1y-sQxV-P4S8tFBFoUEuzfMFfAou0bUEeE49xA
 2. Blockchain Economy: https://docs.google.com/document/d/1E2ytBCuSK4g2zLKyqJeCOHLqvxE5xfBELhcgPqZlKlk
-3. CPI Malaysia: https://www.economy.com/malaysia/consumer-price-index-cpi
+3. CPI Malaysia: https://www.economy.com/malaysia/consumer-price-index-cpi, https://open.dosm.gov.my/consumer-prices
