@@ -67,7 +67,7 @@ external & public view & pure functions
 
 4. only vendors can list items, create update delete items - add quantities etc. 
 
-5. By using the floor price of Cryptocities marketplace, we shall determine the `Consumer Price Index` of the economy - we will start with FnB category first 
+5. By using the floor price of Cryptocities marketplace, we shall determine the `Consumer Price Index` of the economy - we will start off with measuring the CPI first to control the Minting, Burning and Airdropping.
 
 6. Formula: CPI_t = (C_t)/(C_0) * 100
 
@@ -93,4 +93,4 @@ C_0	=	cost of market basket in base period
     - Education
     - Misc. goods & services
 
-10. To comply with the gov "maybe" might need to do something like how paypal does with its stablecoin - freeze and lock functionality (admin only) 
+10. To comply with the gov "maybe" might need to do something like how paypal does with its stablecoin - freeze, unfreeze, wipeFronzenAddress functionality (admin only) 
