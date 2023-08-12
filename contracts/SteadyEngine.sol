@@ -15,13 +15,15 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SteadyCoin} from "./SteadyCoin.sol";
 
 interface ISteadyMarketplace {
-    function getFloorPrice(
+    function getTotalSales(
+        uint256 nftId,
         address steadyMarketplaceAddress
     ) external view returns (uint256);
 
-    function getFloorPriceByCategory(
+    function getTotalSalesBasedOnCategory(
+        uint256 nftId,
         address steadyMarketplaceAddress,
-        string memory _category
+        uint8 category
     ) external view returns (uint256);
 }
 
@@ -187,6 +189,24 @@ contract SteadyEngine is ReentrancyGuard {
     }
 
     /*
+     * @param recipients: The addresses of the recipients of the airdrop
+     * @param amounts: The amounts of STC to airdrop to each recipient
+     */
+    function airdropStc(
+        address[] memory recipients,
+        uint256[] memory amounts
+    ) external nonReentrant {
+        // mint the STC and transfer to the receipients
+        for (uint256 i = 0; i < recipients.length; i++) {
+            s_STCMinted[recipients[i]] += amounts[i];
+            bool success = i_stc.mint(recipients[i], amounts[i]);
+            if (!success) {
+                revert SteadyEngine__MintFailed();
+            }
+        }
+    }
+
+    /*
      * @param tokenCollateralAddress: The ERC20 token address of the collateral we're depositing
      * @param amountCollateral: The amount of collateral we're depositing
      */
@@ -268,10 +288,17 @@ contract SteadyEngine is ReentrancyGuard {
 
     function _healthFactor(address user) private view returns (uint256) {}
 
-    function _getBasketValue(
-        address token,
-        uint256 amount
-    ) private view returns (uint256) {}
+    function _getOverallBasketValues(
+        uint256 nftId,
+        address steadyMarketplaceAddress
+    ) private view returns (uint256) {
+        // use Interface of getTotalSales
+        uint256 totalSales = i_marketplace.getTotalSales(
+            nftId,
+            steadyMarketplaceAddress
+        );
+        return totalSales;
+    }
 
     function _calculateHealthFactor(
         uint256 totalStcMinted,
@@ -295,10 +322,12 @@ contract SteadyEngine is ReentrancyGuard {
         return _getAccountInformation(user);
     }
 
-    function getBasketValue(
-        address token,
-        uint256 amount // in WEI
-    ) external view returns (uint256) {}
+    function getOverallBasketValues(
+        uint256 nftId,
+        address steadyMarketplaceAddress
+    ) external view returns (uint256) {
+        return _getOverallBasketValues(nftId, steadyMarketplaceAddress);
+    }
 
     function getCollateralBalanceOfUser(
         address user,
