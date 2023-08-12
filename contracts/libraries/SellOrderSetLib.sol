@@ -11,12 +11,36 @@ pragma solidity ^0.8.19;
  */
 
 library SellOrderSetLib {
+    // Category enum representing the category of a sell order.
+    enum Category {
+        FoodAndNonAlcoholicBeverages,
+        RestaurantsAndHotels,
+        AlcoholicBeveragesAndTobacco,
+        ClothingAndFootwear,
+        HousingWaterElectricityGasAndOtherFuels,
+        FurnishingsHouseholdEquipmentAndRoutineHouseholdMaintenance,
+        Health,
+        Transport,
+        Communication,
+        RecreationServicesAndCulture,
+        Education,
+        MiscGoodsAndServices
+    }
+
+    modifier validCategory(uint8 category) {
+        require(
+            category > 0 && category < 13,
+            "SellOrderSetLib(100) - Category must be between 1 and 12."
+        );
+        _;
+    }
+
     // SellOrder structure representing a sell order, containing the address of the seller, the quantity of tokens being sold, and the unit price of the tokens.
     struct SellOrder {
         address listedBy; // Address of the seller
         uint256 quantity; // Quantity of tokens being sold
         uint256 unitPrice; // Unit price of the tokens
-        uint8 category; // Category based on the "basket of goods and services"
+        Category category; // Category of the sell order
     }
 
     // Set structure containing a mapping of seller addresses to indices in the keyList array, and an array of SellOrders.
@@ -26,7 +50,10 @@ library SellOrderSetLib {
     }
 
     // Function to insert a SellOrder into the Set.
-    function insert(Set storage self, SellOrder memory key) internal {
+    function insert(
+        Set storage self,
+        SellOrder memory key
+    ) internal validCategory(uint8(key.category)) {
         // Check if the seller address is address(0), which is not allowed.
         require(
             key.listedBy != address(0),
@@ -48,10 +75,6 @@ library SellOrderSetLib {
             "OrderSetLib(103) - Key already exists in the set."
         );
         // Check if the category is between 1 and 12.
-        require(
-            key.category > 0 && key.category < 13,
-            "OrderSetLib(104) - Category must be between 1 and 12."
-        );
 
         // If all checks pass, add the SellOrder to the keyList array.
         self.keyList.push(key);
@@ -59,7 +82,10 @@ library SellOrderSetLib {
         self.keyPointers[key.listedBy] = self.keyList.length - 1;
     }
 
-    function remove(Set storage self, SellOrder memory key) internal {
+    function remove(
+        Set storage self,
+        SellOrder memory key
+    ) internal validCategory(uint8(key.category)) {
         require(
             exists(self, key),
             "OrderSetLib(104) - Sell Order does not exist in the set."
@@ -153,6 +179,40 @@ library SellOrderSetLib {
     }
 
     /**
+     * Get the sell order listed by a specific address and category
+     *
+     * @param self Set The set of sell orders
+     * @param listedBy address The address that listed the sell order to retrieve
+     * @param category uint8 The category of the sell order to retrieve
+     * @return SellOrder The sell order listed by the specified address and category
+     */
+    function ordersByAddressAndCategory(
+        Set storage self,
+        address listedBy,
+        uint8 category
+    ) internal view validCategory(category) returns (SellOrder[] memory) {
+        SellOrder[] memory matchingOrders;
+        uint256 iCount = 0;
+
+        for (uint256 i = 0; i < self.keyList.length; i++) {
+            if (
+                self.keyList[i].listedBy == listedBy &&
+                uint8(self.keyList[i].category) == category
+            ) {
+                matchingOrders[iCount] = self.keyList[i];
+                iCount++;
+            }
+        }
+
+        SellOrder[] memory result = new SellOrder[](iCount);
+        for (uint256 i = 0; i < iCount; i++) {
+            result[i] = matchingOrders[i];
+        }
+
+        return result;
+    }
+
+    /**
      * Remove all sell orders from the set
      *
      * @param self Set The set of sell orders to nuke
@@ -171,6 +231,36 @@ library SellOrderSetLib {
         Set storage self
     ) internal view returns (SellOrder[] storage) {
         return self.keyList;
+    }
+
+    /**
+     * Get all sell orders in the set by a specific category
+     *
+     * @param self Set The set of sell orders
+     * @param category uint256 The category to filter by
+     * @return SellOrder[] The array of all sell orders in the set by a specific category
+     */
+
+    function allOrdersByCategory(
+        Set storage self,
+        uint8 category
+    ) internal view validCategory(category) returns (SellOrder[] memory) {
+        SellOrder[] memory matchingOrders;
+        uint256 iCount = 0;
+
+        for (uint256 i = 0; i < self.keyList.length; i++) {
+            if (uint8(self.keyList[i].category) == category) {
+                matchingOrders[iCount] = self.keyList[i];
+                iCount++;
+            }
+        }
+
+        SellOrder[] memory result = new SellOrder[](iCount);
+        for (uint256 i = 0; i < iCount; i++) {
+            result[i] = matchingOrders[i];
+        }
+
+        return result;
     }
 
     /**
@@ -197,10 +287,10 @@ library SellOrderSetLib {
     function totalSalesByCategory(
         Set storage self,
         uint8 category
-    ) internal view returns (uint256) {
+    ) internal view validCategory(category) returns (uint256) {
         uint256 totalCost = 0;
         for (uint256 i = 0; i < self.keyList.length; i++) {
-            if (self.keyList[i].category == category) {
+            if (uint8(self.keyList[i].category) == category) {
                 totalCost +=
                     self.keyList[i].quantity *
                     self.keyList[i].unitPrice;

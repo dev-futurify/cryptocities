@@ -4,8 +4,7 @@ pragma solidity 0.8.19;
 /*
  * @title SteadyEngine
  * @description This contract is the core of the SteadyCoin system. It handles all the logic
- * for minting and redeeming STC, as well as depositing and withdrawing collateral. Also, it
- * handles airdrops and liquidations.
+ * for minting and redeeming STC, airdrops, as well as depositing and withdrawing collateral.
  * @author ricogustavo
  * @team Futurify x EpicStartups
  *
@@ -15,13 +14,13 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SteadyCoin} from "./SteadyCoin.sol";
 
-interface ICryptoCitiesMarketplace {
+interface ISteadyMarketplace {
     function getFloorPrice(
-        address marketplaceAddress
+        address steadyMarketplaceAddress
     ) external view returns (uint256);
 
     function getFloorPriceByCategory(
-        address marketplaceAddress,
+        address steadyMarketplaceAddress,
         string memory _category
     ) external view returns (uint256);
 }
@@ -36,7 +35,7 @@ contract SteadyEngine is ReentrancyGuard {
     error SteadyEngine__HealthFactorNotImproved();
 
     SteadyCoin private immutable i_stc;
-    ICryptoCitiesMarketplace private immutable i_marketplace;
+    ISteadyMarketplace private immutable i_marketplace;
 
     uint256 private constant LIQUIDATION_THRESHOLD = 50; // This means we need to be 200% over-collateralized
     uint256 private constant LIQUIDATION_BONUS = 10; // This means we get assets at a 10% discount when liquidating
@@ -81,10 +80,8 @@ contract SteadyEngine is ReentrancyGuard {
         _;
     }
 
-    constructor(address stcAddress, address cryptoCitiesMarketplaceAddress) {
-        i_marketplace = ICryptoCitiesMarketplace(
-            cryptoCitiesMarketplaceAddress
-        );
+    constructor(address stcAddress, address steadyMarketplaceAddress) {
+        i_marketplace = ISteadyMarketplace(steadyMarketplaceAddress);
 
         i_stc = SteadyCoin(stcAddress);
     }
