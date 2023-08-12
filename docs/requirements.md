@@ -8,6 +8,7 @@
 
 1. Any users can become a vendor as long they creates a `collection`
     - 1 collection belongs to 1 vendor, and the marketplace shall have many vendors
+    - **NEW FEAT**: charge to become a vendor in the marketplace
 2. Users able to list their items/products on the marketplace based on the `12 main categories` in the `basket of good and services`
     - Then based from the user `selection`, create for them an ERC721 or ERC1155 contract
 3. Each collection can have multiple categories they can choose to sell on the marketplace.
@@ -16,7 +17,6 @@
     - Floor price
     - Product listed percentage
     - Owners of the NFT (the customer that purchased the items/product)
-
 
 ### Steady Engine 
 

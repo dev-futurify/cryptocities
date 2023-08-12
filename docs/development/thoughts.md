@@ -92,3 +92,5 @@ C_0	=	cost of market basket in base period
     - Recreation services & culture
     - Education
     - Misc. goods & services
+
+10. To comply with the gov "maybe" might need to do something like how paypal does with its stablecoin - freeze and lock functionality (admin only) 
