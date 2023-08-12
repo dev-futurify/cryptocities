@@ -23,7 +23,7 @@ contract SteadyMarketplace is Context {
     using SellOrderSetLib for SellOrderSetLib.Set;
 
     // charge a fee of 100 MATIC equivalent to become a vendor
-    uint256 public constant VENDOR_FEE = 100 ether;
+    uint256 public constant VENDOR_FEE = 100 ether; // TODO: update vendor fee charge
 
     // Mapping to store sell orders for different NFTs
     mapping(bytes32 => SellOrderSetLib.Set) private orders;
@@ -143,6 +143,15 @@ contract SteadyMarketplace is Context {
         _;
     }
 
+    // modifier to check if the vendor has created a collection
+    modifier hasCreatedCollection() {
+        require(
+            vendors[_msgSender()].vendorCollections.length > 0,
+            "Vendor must create a collection to perform this action."
+        );
+        _;
+    }
+
     /**
      * registerVendor - Registers a new vendor
      * @param name - Name of the vendor
@@ -243,7 +252,7 @@ contract SteadyMarketplace is Context {
         uint256 unitPrice,
         uint256 noOfTokensForSale,
         uint8 category
-    ) external onlyVendor {
+    ) external onlyVendor hasCreatedCollection {
         // Require that the unit price of each token must be greater than 0
         require(unitPrice > 0, "Price must be greater than 0.");
 
@@ -328,7 +337,10 @@ contract SteadyMarketplace is Context {
      * @param nftId ID of the NFT token to cancel the sell order for.
      * @param contractAddress Address of the NFT contract for the NFT token.
      */
-    function cancelSellOrder(uint256 nftId, address contractAddress) external {
+    function cancelSellOrder(
+        uint256 nftId,
+        address contractAddress
+    ) external onlyVendor hasCreatedCollection {
         // Get the unique identifier for the order set of the given NFT token.
         bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
 
@@ -542,12 +554,12 @@ contract SteadyMarketplace is Context {
     }
 
     /**
-     * getFloorPrice function returns the total sales on all categories
+     * getTotalSales function returns the total sales on all categories
      * @param nftId unique identifier of the token
      * @param contractAddress address of the contract that holds the token
      * @return total sales on all categories
      */
-    function getFloorPrice(
+    function getTotalSales(
         uint256 nftId,
         address contractAddress
     ) external view returns (uint256) {
