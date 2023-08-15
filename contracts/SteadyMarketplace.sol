@@ -11,19 +11,21 @@ pragma solidity 0.8.19;
 
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {Context} from "@openzeppelin/contracts/utils/Context.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+
 import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {SellOrderSetLib} from "./libraries/SellOrderSetLib.sol";
 
-contract SteadyMarketplace is Context {
+contract SteadyMarketplace is Context, Ownable {
     // Use SafeMath library for uint256 arithmetic operations
     using SafeMath for uint256;
     // Use SellOrderSetLib for SellOrderSetLib.Set operations
     using SellOrderSetLib for SellOrderSetLib.Set;
 
     // charge a fee of 100 MATIC equivalent to become a vendor
-    uint256 public constant VENDOR_FEE = 100 ether; // TODO: update vendor fee charge
+    uint256 public constant VENDOR_FEE = 100 ether; // TODO: update vendor fee charge - to be revised
 
     // Mapping to store sell orders for different NFTs
     mapping(bytes32 => SellOrderSetLib.Set) private orders;
@@ -33,26 +35,23 @@ contract SteadyMarketplace is Context {
         address vendorAddress; // TODO: create a new contract for each vendor
         string vendorName;
         string vendorDescription;
-        string vendorLogo;
-        string vendorWebsite;
         VendorCollection[] vendorCollections;
     }
     // VendorCollection data structure to store vendor collection details
     struct VendorCollection {
         uint256 collectionId;
         address collectionAddress; // TODO: create a new contract for each collection
+        uint8 category;
         string collectionName;
         string collectionDescription;
-        string collectionImage;
-        string collectionWebsite;
-        string collectionSocialMedia;
-        uint256 collectionFloorPrice;
         uint256 collectionTotalSales;
         uint256 collectionTotalSalesByCategory;
-        uint8 category;
     }
+
+    // Mapping to store vendor details
     mapping(address => VendorCollection) public vendorCollections;
 
+    // Mapping to store vendor details
     mapping(address => Vendor) public vendors;
 
     // Event to indicate a token is listed for sale
@@ -104,11 +103,17 @@ contract SteadyMarketplace is Context {
         // Name of the vendor
         string name,
         // Description of the vendor
-        string description,
-        // Logo of the vendor
-        string logo,
-        // Website of the vendor
-        string website
+        string description
+    );
+
+    // Event when vendor is updated
+    event VendorUpdated(
+        // Account address of the vendor
+        address account,
+        // Name of the vendor
+        string name,
+        // Description of the vendor
+        string description
     );
 
     // Event when new vendor collection is created
@@ -152,26 +157,50 @@ contract SteadyMarketplace is Context {
         _;
     }
 
+    // modifier to check if the collection is valid
+    modifier validCollection(address collectionAddress) {
+        require(
+            vendorCollections[collectionAddress].collectionAddress ==
+                collectionAddress,
+            "Collection does not exist"
+        );
+        _;
+    }
+
+    // modifier to check if the vendor has sufficient balance
+    modifier sufficientVendorBalance(
+        address collectionAddress,
+        uint256 amount
+    ) {
+        require(amount > 0, "Amount must be greater than 0");
+        require(
+            vendorCollections[collectionAddress].collectionTotalSales >= amount,
+            "Insufficient balance"
+        );
+        _;
+    }
+
+    // modifier to check if owner has sufficient balance
+    modifier sufficientOwnerBalance(uint256 amount) {
+        require(amount > 0, "Amount must be greater than 0");
+        require(address(this).balance >= amount, "Insufficient balance");
+        _;
+    }
+
     /**
      * registerVendor - Registers a new vendor
      * @param name - Name of the vendor
      * @param description - Description of the vendor
-     * @param logo - Logo of the vendor
-     * @param website - Website of the vendor
      */
     function registerVendor(
         string memory name,
-        string memory description,
-        string memory logo,
-        string memory website
+        string memory description
     ) external payable paidVendorFee {
         // Create a new vendor with push
         Vendor memory v = Vendor(
             _msgSender(),
             name,
             description,
-            logo,
-            website,
             new VendorCollection[](0)
         );
 
@@ -179,43 +208,33 @@ contract SteadyMarketplace is Context {
         vendors[_msgSender()] = v;
 
         // Emit the VendorCreated event
-        emit VendorCreated(_msgSender(), name, description, logo, website);
+        emit VendorCreated(_msgSender(), name, description);
     }
 
     /**
      * registerVendorCollection - Registers a new vendor collection
      * @param collectionId - Collection id of the vendor
      * @param collectionAddress - Collection address of the vendor
+     * @param category - Category of the vendor
      * @param name - Name of the vendor
      * @param description - Description of the vendor
-     * @param image - Image of the vendor
-     * @param website - Website of the vendor
-     * @param socialMedia - Social media of the vendor
-     * @param category - Category of the vendor
      */
     function registerVendorCollection(
         uint256 collectionId,
         address collectionAddress,
+        uint8 category,
         string memory name,
-        string memory description,
-        string memory image,
-        string memory website,
-        string memory socialMedia,
-        uint8 category
+        string memory description
     ) external payable onlyVendor {
         // Create a new vendor collection with push
         VendorCollection memory vc = VendorCollection(
             collectionId,
             collectionAddress,
+            category,
             name,
             description,
-            image,
-            website,
-            socialMedia,
             0,
-            0,
-            0,
-            category
+            0
         );
 
         // Add the vendor collection to the vendor collections mapping
@@ -235,6 +254,22 @@ contract SteadyMarketplace is Context {
     }
 
     /**
+     * updateVendor - Updates an existing vendor
+     * @param name - Name of the vendor
+     * @param description - Description of the vendor
+     */
+    function updateVendor(
+        string memory name,
+        string memory description
+    ) external payable onlyVendor {
+        // Update the vendor details
+        vendors[_msgSender()].vendorName = name;
+        vendors[_msgSender()].vendorDescription = description;
+
+        emit VendorUpdated(_msgSender(), name, description);
+    }
+
+    /**
      * createSellOrder - Creates a sell order for the NFT specified by `nftId` and `contractAddress`.
      *
      * @param nftId          - The ID of the NFT to be sold.
@@ -245,6 +280,7 @@ contract SteadyMarketplace is Context {
      * @param category       - The category of the NFT.
      */
 
+    //  TO BE REVISED
     function createSellOrder(
         uint256 nftId,
         address contractAddress,
@@ -276,10 +312,10 @@ contract SteadyMarketplace is Context {
             // Get the ERC721 contract
             IERC721 tokenContract = IERC721(contractAddress);
 
-            // Require that the caller has approved the NFTTrade contract for token transfer
+            // Require that the caller has approved the contract for token transfer
             require(
                 tokenContract.isApprovedForAll(_msgSender(), address(this)),
-                "Caller has not approved NFTTrade contract for token transfer."
+                "Caller has not approved contract for token transfer."
             );
 
             // Require that the caller owns the NFT token
@@ -294,10 +330,10 @@ contract SteadyMarketplace is Context {
             // Get the ERC1155 contract
             IERC1155 tokenContract = IERC1155(contractAddress);
 
-            // Require that the caller has approved the NFTTrade contract for token transfer
+            // Require that the caller has approved the contract for token transfer
             require(
                 tokenContract.isApprovedForAll(_msgSender(), address(this)),
-                "Caller has not approved NFTTrade contract for token transfer."
+                "Caller has not approved contract for token transfer."
             );
 
             // Require that the caller has sufficient balance of the NFT token
@@ -411,10 +447,10 @@ contract SteadyMarketplace is Context {
             // Get the ERC721 contract
             IERC721 tokenContract = IERC721(contractAddress);
 
-            // Require that the caller has approved the NFTTrade contract for token transfer
+            // Require that the caller has approved the contract for token transfer
             require(
                 tokenContract.isApprovedForAll(tokenOwner, address(this)),
-                "Seller has removeed NFTTrade contracts approval for token transfer."
+                "Seller has removed contracts approval for token transfer."
             );
 
             // Transfer ownership of the NFT from the token owner to the buyer.
@@ -426,10 +462,10 @@ contract SteadyMarketplace is Context {
             // Get the IERC1155 contract
             IERC1155 tokenContract = IERC1155(contractAddress);
 
-            // Require that the caller has approved the NFTTrade contract for token transfer
+            // Require that the caller has approved the contract for token transfer
             require(
                 tokenContract.isApprovedForAll(tokenOwner, address(this)),
-                "Seller has removeed NFTTrade contracts approval for token transfer."
+                "Seller has removed contracts approval for token transfer."
             );
 
             // Transfer the specified number of tokens from the token owner to the buyer.
@@ -460,7 +496,7 @@ contract SteadyMarketplace is Context {
             sellOrder.quantity -= noOfTokensToBuy;
         }
 
-        // Emit TokensSold event on successfull purchase
+        // Emit TokensSold event on successful purchase
         emit TokensSold(
             tokenOwner,
             _msgSender(),
@@ -480,7 +516,7 @@ contract SteadyMarketplace is Context {
     function getOrders(
         uint256 nftId,
         address contractAddress
-    ) external view onlyVendor returns (SellOrderSetLib.SellOrder[] memory) {
+    ) external view returns (SellOrderSetLib.SellOrder[] memory) {
         bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
         return orders[orderId].allOrders();
     }
@@ -496,7 +532,7 @@ contract SteadyMarketplace is Context {
         uint256 nftId,
         address contractAddress,
         address listedBy
-    ) public view onlyVendor returns (SellOrderSetLib.SellOrder memory) {
+    ) public view returns (SellOrderSetLib.SellOrder memory) {
         // Calculate the unique identifier for the order
         bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
 
@@ -530,7 +566,7 @@ contract SteadyMarketplace is Context {
         uint256 nftId,
         address contractAddress,
         uint8 category
-    ) external view onlyVendor returns (SellOrderSetLib.SellOrder[] memory) {
+    ) external view returns (SellOrderSetLib.SellOrder[] memory) {
         bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
         return orders[orderId].allOrdersByCategory(category);
     }
@@ -548,7 +584,7 @@ contract SteadyMarketplace is Context {
         address contractAddress,
         uint8 category,
         address listedBy
-    ) external view onlyVendor returns (SellOrderSetLib.SellOrder[] memory) {
+    ) external view returns (SellOrderSetLib.SellOrder[] memory) {
         bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
         return orders[orderId].ordersByAddressAndCategory(listedBy, category);
     }
@@ -583,6 +619,37 @@ contract SteadyMarketplace is Context {
         bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
         SellOrderSetLib.Set storage nftOrders = orders[orderId];
         return nftOrders.totalSalesByCategory(category);
+    }
+
+    /**
+     * vendorWithdrawal function allows the vendor to withdraw their funds from their gains in the their associated collections
+     * @param collectionAddress address of the collection that holds the token
+     * @param amount amount to be withdrawn
+     */
+    function vendorWithdrawal(
+        address collectionAddress,
+        uint256 amount
+    )
+        external
+        onlyVendor
+        validCollection(collectionAddress)
+        sufficientVendorBalance(collectionAddress, amount)
+    {
+        vendorCollections[collectionAddress].collectionTotalSales -= amount;
+        (bool vs, ) = _msgSender().call{value: amount}("");
+        require(vs, "Failed to send Ether to the vendor.");
+    }
+
+    /**
+     * ownerWithdrawal function allows the owner to withdraw the funds from the contract
+     */
+    function ownerWithdrawal()
+        external
+        onlyOwner
+        sufficientOwnerBalance(address(this).balance)
+    {
+        (bool os, ) = owner().call{value: address(this).balance}("");
+        require(os, "Failed to send Ether to the owner.");
     }
 
     // _getOrdersMapId function generates the unique identifier for a given NFT id and contract address
