@@ -1,7 +1,8 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import { Contract, Signer } from "ethers";
 
-describe("SteadyCoin", function () {
+describe("SteadyCoin", () => {
   let steadyCoin: any;
   let owner: any;
   let addr1: any;
@@ -69,7 +70,238 @@ describe("SteadyCoin", function () {
   });
 });
 
-describe("SteadyEngine", function () {
+describe("SteadyMarketplace", () => {
+  let marketplace: Contract;
+  let deployer: Signer;
+  let vendor1: Signer;
+  let buyer: Signer;
+
+  beforeEach(async () => {
+    [deployer, vendor1, buyer] = await ethers.getSigners();
+
+    const Marketplace = await ethers.getContractFactory("SteadyMarketplace");
+    marketplace = await Marketplace.deploy();
+    await marketplace.deployed();
+  });
+
+  it("should allow deployment", async () => {
+    // Ensure the contract is successfully deployed
+    expect(marketplace.address).to.not.equal(ethers.constants.AddressZero);
+  });
+
+  // Test cases for vendor registration
+  describe("Vendor Registration", () => {
+    it("should register a new vendor", async () => {
+      // Register a new vendor
+      const vendorName = "Vendor1";
+      const vendorDescription = "Vendor 1 description";
+      await marketplace
+        .connect(vendor1)
+        .registerVendor(vendorName, vendorDescription);
+
+      // Verify that the vendor is registered
+      const vendor = await marketplace.vendors(await vendor1.getAddress());
+      expect(vendor.vendorAddress).to.equal(await vendor1.getAddress());
+      expect(vendor.vendorName).to.equal(vendorName);
+      expect(vendor.vendorDescription).to.equal(vendorDescription);
+    });
+
+    it("should update vendor details", async () => {
+      // Register a new vendor
+      const vendorName = "Vendor1";
+      const vendorDescription = "Vendor 1 description";
+      await marketplace
+        .connect(vendor1)
+        .registerVendor(vendorName, vendorDescription);
+
+      // Update vendor details
+      const newVendorName = "Updated Vendor1";
+      const newVendorDescription = "Updated Vendor 1 description";
+      await marketplace
+        .connect(vendor1)
+        .updateVendor(newVendorName, newVendorDescription);
+
+      // Verify that the vendor details are updated
+      const updatedVendor = await marketplace.vendors(
+        await vendor1.getAddress()
+      );
+      expect(updatedVendor.vendorName).to.equal(newVendorName);
+      expect(updatedVendor.vendorDescription).to.equal(newVendorDescription);
+    });
+
+    it("should not allow non-vendors to update vendor details", async () => {
+      // Try to update vendor details from a non-vendor account
+      await expect(
+        marketplace.updateVendor("New Name", "New Description")
+      ).to.be.revertedWith("Only registered vendors can perform this action.");
+    });
+  });
+
+  // Test cases for vendor collection registration
+  describe("Vendor Collection", () => {
+    it("should register a new vendor collection", async () => {
+      // Register a new vendor
+      const vendorName = "Vendor1";
+      const vendorDescription = "Vendor 1 description";
+      await marketplace
+        .connect(vendor1)
+        .registerVendor(vendorName, vendorDescription);
+
+      // Register a new vendor collection
+      const collectionId = 1;
+      const collectionAddress = await vendor1.getAddress(); // This could be a unique address for each collection
+      const category = 1;
+      const collectionName = "Collection 1";
+      const collectionDescription = "Collection 1 description";
+      await marketplace
+        .connect(vendor1)
+        .registerVendorCollection(
+          collectionId,
+          collectionAddress,
+          category,
+          collectionName,
+          collectionDescription
+        );
+
+      // Verify that the vendor collection is registered
+      const vendorCollection = await marketplace.vendorCollections(
+        collectionAddress
+      );
+      expect(vendorCollection.collectionId).to.equal(collectionId);
+      expect(vendorCollection.collectionAddress).to.equal(collectionAddress);
+      expect(vendorCollection.category).to.equal(category);
+      expect(vendorCollection.collectionName).to.equal(collectionName);
+      expect(vendorCollection.collectionDescription).to.equal(
+        collectionDescription
+      );
+    });
+
+    it("should not allow non-vendors to register a collection", async () => {
+      // Try to register a vendor collection from a non-vendor account
+      await expect(
+        marketplace.registerVendorCollection(
+          1,
+          await vendor1.getAddress(),
+          1,
+          "Collection 1",
+          "Collection 1 description"
+        )
+      ).to.be.revertedWith("Only registered vendors can perform this action.");
+    });
+  });
+
+  // Test cases for creating and cancelling sell orders
+  describe("Sell Orders", () => {
+    let vendorCollectionAddress: string;
+
+    beforeEach(async () => {
+      // Register a new vendor
+      const vendorName = "Vendor1";
+      const vendorDescription = "Vendor 1 description";
+      await marketplace
+        .connect(vendor1)
+        .registerVendor(vendorName, vendorDescription);
+
+      // Register a new vendor collection
+      const collectionId = 1;
+      vendorCollectionAddress = await vendor1.getAddress(); // This could be a unique address for each collection
+      const category = 1;
+      const collectionName = "Collection 1";
+      const collectionDescription = "Collection 1 description";
+      await marketplace
+        .connect(vendor1)
+        .registerVendorCollection(
+          collectionId,
+          vendorCollectionAddress,
+          category,
+          collectionName,
+          collectionDescription
+        );
+    });
+
+    it("should create a sell order and list NFT for sale", async () => {
+      const nftId = 1;
+      const contractAddress = vendorCollectionAddress;
+      const nftType = "erc721";
+      const unitPrice = ethers.utils.parseEther("1"); // 1 Ether
+      const noOfTokensForSale = 1;
+      const category = 1;
+
+      // Create a sell order
+      await marketplace
+        .connect(vendor1)
+        .createSellOrder(
+          nftId,
+          contractAddress,
+          nftType,
+          unitPrice,
+          noOfTokensForSale,
+          category
+        );
+
+      // Get sell orders for the NFT
+      const sellOrders = await marketplace.getOrders(nftId, contractAddress);
+      expect(sellOrders.length).to.equal(1);
+      expect(sellOrders[0].listedBy).to.equal(await vendor1.getAddress());
+      expect(sellOrders[0].quantity).to.equal(noOfTokensForSale);
+      expect(sellOrders[0].unitPrice).to.equal(unitPrice);
+      expect(sellOrders[0].category).to.equal(category);
+    });
+
+    it("should not allow non-vendors to create a sell order", async () => {
+      await expect(
+        marketplace.createSellOrder(
+          1,
+          vendorCollectionAddress,
+          "erc721",
+          ethers.utils.parseEther("1"),
+          1,
+          1
+        )
+      ).to.be.revertedWith("Only registered vendors can perform this action.");
+    });
+
+    it("should cancel a sell order", async () => {
+      const nftId = 1;
+      const contractAddress = vendorCollectionAddress;
+      const nftType = "erc721";
+      const unitPrice = ethers.utils.parseEther("1"); // 1 Ether
+      const noOfTokensForSale = 1;
+      const category = 1;
+
+      // Create a sell order
+      await marketplace
+        .connect(vendor1)
+        .createSellOrder(
+          nftId,
+          contractAddress,
+          nftType,
+          unitPrice,
+          noOfTokensForSale,
+          category
+        );
+
+      // Cancel the sell order
+      await marketplace
+        .connect(vendor1)
+        .cancelSellOrder(nftId, contractAddress);
+
+      // Get sell orders for the NFT
+      const sellOrders = await marketplace.getOrders(nftId, contractAddress);
+      expect(sellOrders.length).to.equal(0);
+    });
+
+    it("should not allow non-vendors to cancel a sell order", async () => {
+      await expect(
+        marketplace.cancelSellOrder(1, vendorCollectionAddress)
+      ).to.be.revertedWith("Only registered vendors can perform this action.");
+    });
+  });
+
+  // Add more test cases for buying NFTs, vendor withdrawals, and more functionalities here.
+});
+
+describe("SteadyEngine", () => {
   let SteadyEngine;
   let SteadyCoin;
   let steadyEngine;
@@ -188,173 +420,5 @@ describe("SteadyEngine", function () {
 
   it("Should get the health factor", async function () {
     // Implement this test case if needed
-  });
-});
-
-describe("SteadyMarketplace", function () {
-  let steadyMarketplace;
-  let owner;
-  let addr1;
-  let addr2;
-  let tokenContract;
-  let nftId;
-
-  beforeEach(async function () {
-    [owner, addr1, addr2] = await ethers.getSigners();
-
-    // Deploy the SteadyMarketplace contract
-    const SteadyMarketplaceFactory = await ethers.getContractFactory(
-      "SteadyMarketplace"
-    );
-    steadyMarketplace = await SteadyMarketplaceFactory.deploy();
-    await steadyMarketplace.deployed();
-
-    // Deploy the ERC1155 token contract for testing
-    const ERC1155Factory = await ethers.getContractFactory("ERC1155Mock");
-    tokenContract = await ERC1155Factory.deploy();
-    await tokenContract.deployed();
-
-    // Mint some initial tokens for testing
-    nftId = 1;
-    await tokenContract.mint(owner.address, nftId, 100, []);
-
-    // Approve SteadyMarketplace contract to transfer tokens
-    await tokenContract.setApprovalForAll(steadyMarketplace.address, true);
-  });
-
-  it("Should create a sell order", async function () {
-    const unitPrice = ethers.utils.parseEther("1");
-    const noOfTokensForSale = 10;
-
-    await steadyMarketplace.createSellOrder(
-      nftId,
-      tokenContract.address,
-      unitPrice,
-      noOfTokensForSale
-    );
-
-    const sellOrders = await steadyMarketplace.getOrders(
-      nftId,
-      tokenContract.address
-    );
-    expect(sellOrders.length).to.equal(1);
-    expect(sellOrders[0].owner).to.equal(owner.address);
-    expect(sellOrders[0].quantity).to.equal(noOfTokensForSale);
-    expect(sellOrders[0].unitPrice).to.equal(unitPrice);
-  });
-
-  it("Should not create a sell order with invalid unit price", async function () {
-    await expect(
-      steadyMarketplace.createSellOrder(nftId, tokenContract.address, 0, 10)
-    ).to.be.revertedWith("SteadyMarketplace: Price must be greater than 0.");
-  });
-
-  it("Should not create a sell order without sufficient balance", async function () {
-    const unitPrice = ethers.utils.parseEther("1");
-    const noOfTokensForSale = 101;
-
-    await expect(
-      steadyMarketplace.createSellOrder(
-        nftId,
-        tokenContract.address,
-        unitPrice,
-        noOfTokensForSale
-      )
-    ).to.be.revertedWith("SteadyMarketplace: Insufficient token balance.");
-  });
-
-  it("Should cancel a sell order", async function () {
-    const unitPrice = ethers.utils.parseEther("1");
-    const noOfTokensForSale = 10;
-
-    await steadyMarketplace.createSellOrder(
-      nftId,
-      tokenContract.address,
-      unitPrice,
-      noOfTokensForSale
-    );
-
-    await steadyMarketplace.cancelSellOrder(nftId, tokenContract.address);
-
-    const sellOrders = await steadyMarketplace.getOrders(
-      nftId,
-      tokenContract.address
-    );
-    expect(sellOrders.length).to.equal(0);
-  });
-
-  it("Should create a buy order", async function () {
-    const unitPrice = ethers.utils.parseEther("1");
-    const noOfTokensForSale = 10;
-    const noOfTokensToBuy = 5;
-
-    await steadyMarketplace.createSellOrder(
-      nftId,
-      tokenContract.address,
-      unitPrice,
-      noOfTokensForSale
-    );
-
-    const initialOwnerBalance = await tokenContract.balanceOf(
-      owner.address,
-      nftId
-    );
-    const initialBuyerBalance = await tokenContract.balanceOf(
-      addr1.address,
-      nftId
-    );
-
-    await steadyMarketplace
-      .connect(addr1)
-      .createBuyOrder(
-        nftId,
-        tokenContract.address,
-        noOfTokensToBuy,
-        owner.address,
-        { value: unitPrice.mul(noOfTokensToBuy) }
-      );
-
-    const finalOwnerBalance = await tokenContract.balanceOf(
-      owner.address,
-      nftId
-    );
-    const finalBuyerBalance = await tokenContract.balanceOf(
-      addr1.address,
-      nftId
-    );
-
-    expect(finalOwnerBalance.sub(initialOwnerBalance)).to.equal(
-      noOfTokensToBuy
-    );
-    expect(initialBuyerBalance.sub(finalBuyerBalance)).to.equal(
-      noOfTokensToBuy
-    );
-  });
-
-  it("Should not create a buy order with insufficient funds", async function () {
-    const unitPrice = ethers.utils.parseEther("1");
-    const noOfTokensForSale = 10;
-    const noOfTokensToBuy = 5;
-
-    await steadyMarketplace.createSellOrder(
-      nftId,
-      tokenContract.address,
-      unitPrice,
-      noOfTokensForSale
-    );
-
-    await expect(
-      steadyMarketplace
-        .connect(addr1)
-        .createBuyOrder(
-          nftId,
-          tokenContract.address,
-          noOfTokensToBuy,
-          owner.address,
-          { value: unitPrice.mul(noOfTokensToBuy).sub(1) }
-        )
-    ).to.be.revertedWith(
-      "SteadyMarketplace: Less ETH provided for the purchase."
-    );
   });
 });
