@@ -70,10 +70,12 @@ external & public view & pure functions
 5. By using the floor price of Cryptocities marketplace, we shall determine the `Consumer Price Index` of the economy - we will start off with measuring the CPI first to control the Minting, Burning and Airdropping.
 
 6. Formula: CPI_t = (C_t)/(C_0) * 100
-
-CPI_t	=	consumer price index in current period
-C_t	=	cost of market basket in current period
-C_0	=	cost of market basket in base period
+where:
+```yaml
+CPI_t	=   consumer price index in current period
+C_t	    =	cost of market basket in current period
+C_0	    =	cost of market basket in base period
+```
 
 7. It will correlates with the inflation rate as well
 
@@ -93,4 +95,16 @@ C_0	=	cost of market basket in base period
     - Education
     - Misc. goods & services
 
-10. To comply with the gov "maybe" might need to do something like how paypal does with its stablecoin - freeze, unfreeze, wipeFronzenAddress functionality (admin only) 
+10. To comply with the gov : "maybe" might need to do something like how paypal does with its stablecoin - freeze, unfreeze, wipeFronzenAddress functionality (admin only) 
+
+11. For erc721 and erc1155 minting/burning etc - we going to need to have separate smart contracts for it 
+    - using IPFS to host the assets (image, metadata) 
+    - and then the address of the smart contract will then saved in the vendor - collectionAddress + description of the collection
+        - if this is the case, then the collectionTotalSales will comes from the erc721 and erc1155 smart contracts itself
+Q: can we skip this part and directly implement it in the marketplace smart contract ?
+
+12. Judging from the Addresses we have on SteadyMarketplace contract,
+    - vendorAddress - The address of the vendor's wallet @ msgSender
+    - collectionAddress - The address of the vendor's collection
+    - contractAddress - The address of the NFT contract
+Q: collectionAddress and contractAddress can be the same?
