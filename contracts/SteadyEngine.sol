@@ -13,6 +13,7 @@ pragma solidity 0.8.19;
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SteadyCoin} from "./SteadyCoin.sol";
+import {SellOrderSetLib} from "./libraries/SellOrderSetLib.sol";
 
 interface ISteadyMarketplace {
     function getTotalSales(
@@ -23,7 +24,7 @@ interface ISteadyMarketplace {
     function getTotalSalesBasedOnCategory(
         uint256 nftId,
         address steadyMarketplaceAddress,
-        uint8 category
+        SellOrderSetLib.Category category
     ) external view returns (uint256);
 }
 

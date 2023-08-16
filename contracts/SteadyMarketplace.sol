@@ -12,7 +12,6 @@ pragma solidity 0.8.19;
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-
 import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -41,7 +40,7 @@ contract SteadyMarketplace is Context, Ownable {
     struct VendorCollection {
         uint256 collectionId;
         address collectionAddress; // TODO: create a new contract for each collection
-        uint8 category;
+        SellOrderSetLib.Category category;
         string collectionName;
         string collectionDescription;
         uint256 collectionTotalSales;
@@ -67,7 +66,7 @@ contract SteadyMarketplace is Context, Ownable {
         // Unit price of each token
         uint256 unitPrice,
         // Category of the NFT
-        uint8 category
+        SellOrderSetLib.Category category
     );
 
     // Event to indicate a token is unlisted from sale
@@ -118,6 +117,20 @@ contract SteadyMarketplace is Context, Ownable {
 
     // Event when new vendor collection is created
     event VendorCollectionCreated(
+        // Account address of the vendor
+        address vendorAddress,
+        // Collection id of the vendor
+        uint256 collectionId,
+        // Collection address of the vendor
+        address collectionAddress,
+        // Name of the vendor
+        string vendorName,
+        // Description of the vendor
+        string vendorDescription
+    );
+
+    // Event when vendor collection is updated
+    event VendorCollectionUpdated(
         // Account address of the vendor
         address vendorAddress,
         // Collection id of the vendor
@@ -222,7 +235,7 @@ contract SteadyMarketplace is Context, Ownable {
     function registerVendorCollection(
         uint256 collectionId,
         address collectionAddress,
-        uint8 category,
+        SellOrderSetLib.Category category,
         string memory name,
         string memory description
     ) external payable onlyVendor {
@@ -262,11 +275,35 @@ contract SteadyMarketplace is Context, Ownable {
         string memory name,
         string memory description
     ) external payable onlyVendor {
-        // Update the vendor details
         vendors[_msgSender()].vendorName = name;
         vendors[_msgSender()].vendorDescription = description;
 
         emit VendorUpdated(_msgSender(), name, description);
+    }
+
+    /**
+     * updateVendorCollection - Updates an existing vendor collection
+     * @param collectionAddress - Address of the vendor collection
+     * @param name - Name of the vendor collection
+     * @param description - Description of the vendor collection
+     */
+
+    function updateVendorCollection(
+        address collectionAddress,
+        string memory name,
+        string memory description
+    ) external payable onlyVendor validCollection(collectionAddress) {
+        vendorCollections[collectionAddress].collectionName = name;
+        vendorCollections[collectionAddress]
+            .collectionDescription = description;
+
+        emit VendorCollectionUpdated(
+            _msgSender(),
+            vendorCollections[collectionAddress].collectionId,
+            collectionAddress,
+            name,
+            description
+        );
     }
 
     /**
@@ -287,7 +324,7 @@ contract SteadyMarketplace is Context, Ownable {
         string memory nftType,
         uint256 unitPrice,
         uint256 noOfTokensForSale,
-        uint8 category
+        SellOrderSetLib.Category category
     ) external onlyVendor hasCreatedCollection {
         // Require that the unit price of each token must be greater than 0
         require(unitPrice > 0, "Price must be greater than 0.");
@@ -565,7 +602,7 @@ contract SteadyMarketplace is Context, Ownable {
     function getOrdersByCategory(
         uint256 nftId,
         address contractAddress,
-        uint8 category
+        SellOrderSetLib.Category category
     ) external view returns (SellOrderSetLib.SellOrder[] memory) {
         bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
         return orders[orderId].allOrdersByCategory(category);
@@ -582,7 +619,7 @@ contract SteadyMarketplace is Context, Ownable {
     function getOrdersByCategoryAndAddress(
         uint256 nftId,
         address contractAddress,
-        uint8 category,
+        SellOrderSetLib.Category category,
         address listedBy
     ) external view returns (SellOrderSetLib.SellOrder[] memory) {
         bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
@@ -614,7 +651,7 @@ contract SteadyMarketplace is Context, Ownable {
     function getTotalSalesBasedOnCategory(
         uint256 nftId,
         address contractAddress,
-        uint8 category
+        SellOrderSetLib.Category category
     ) external view returns (uint256) {
         bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
         SellOrderSetLib.Set storage nftOrders = orders[orderId];

@@ -27,10 +27,10 @@ library SellOrderSetLib {
         MiscGoodsAndServices
     }
 
-    modifier validCategory(uint8 category) {
+    modifier validCategory(Category category) {
         require(
-            category > 0 && category < 13,
-            "SellOrderSetLib(100) - Category must be between 1 and 12."
+            uint8(category) >= 0 && uint8(category) <= 11,
+            "OrderSetLib(99) - Category must be between 0 and 11"
         );
         _;
     }
@@ -53,7 +53,7 @@ library SellOrderSetLib {
     function insert(
         Set storage self,
         SellOrder memory key
-    ) internal validCategory(uint8(key.category)) {
+    ) internal validCategory(Category(key.category)) {
         // Check if the seller address is address(0), which is not allowed.
         require(
             key.listedBy != address(0),
@@ -85,7 +85,7 @@ library SellOrderSetLib {
     function remove(
         Set storage self,
         SellOrder memory key
-    ) internal validCategory(uint8(key.category)) {
+    ) internal validCategory(Category(key.category)) {
         require(
             exists(self, key),
             "OrderSetLib(104) - Sell Order does not exist in the set."
@@ -189,7 +189,7 @@ library SellOrderSetLib {
     function ordersByAddressAndCategory(
         Set storage self,
         address listedBy,
-        uint8 category
+        Category category
     ) internal view validCategory(category) returns (SellOrder[] memory) {
         SellOrder[] memory matchingOrders;
         uint256 iCount = 0;
@@ -197,7 +197,7 @@ library SellOrderSetLib {
         for (uint256 i = 0; i < self.keyList.length; i++) {
             if (
                 self.keyList[i].listedBy == listedBy &&
-                uint8(self.keyList[i].category) == category
+                Category(self.keyList[i].category) == category
             ) {
                 matchingOrders[iCount] = self.keyList[i];
                 iCount++;
@@ -243,13 +243,13 @@ library SellOrderSetLib {
 
     function allOrdersByCategory(
         Set storage self,
-        uint8 category
+        Category category
     ) internal view validCategory(category) returns (SellOrder[] memory) {
         SellOrder[] memory matchingOrders;
         uint256 iCount = 0;
 
         for (uint256 i = 0; i < self.keyList.length; i++) {
-            if (uint8(self.keyList[i].category) == category) {
+            if (Category(self.keyList[i].category) == category) {
                 matchingOrders[iCount] = self.keyList[i];
                 iCount++;
             }
@@ -286,11 +286,11 @@ library SellOrderSetLib {
      */
     function totalSalesByCategory(
         Set storage self,
-        uint8 category
+        Category category
     ) internal view validCategory(category) returns (uint256) {
         uint256 totalCost = 0;
         for (uint256 i = 0; i < self.keyList.length; i++) {
-            if (uint8(self.keyList[i].category) == category) {
+            if (Category(self.keyList[i].category) == category) {
                 totalCost +=
                     self.keyList[i].quantity *
                     self.keyList[i].unitPrice;
