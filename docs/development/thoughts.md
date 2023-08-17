@@ -75,6 +75,9 @@ where:
 CPI_t	=   consumer price index in current period
 C_t	    =	cost of market basket in current period
 C_0	    =	cost of market basket in base period
+
+current period - ?
+base period -  ?
 ```
 
 7. It will correlates with the inflation rate as well
@@ -108,3 +111,5 @@ Q: can we skip this part and directly implement it in the marketplace smart cont
     - collectionAddress - The address of the vendor's collection
     - contractAddress - The address of the NFT contract
 Q: collectionAddress and contractAddress can be the same?
+
+13. calculation of CPI and IR - https://www.investopedia.com/terms/c/consumerpriceindex.asp with new category (only 8 category w/ enum)
