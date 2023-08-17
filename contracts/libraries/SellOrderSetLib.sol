@@ -13,24 +13,20 @@ pragma solidity ^0.8.19;
 library SellOrderSetLib {
     // Category enum representing the category of a sell order.
     enum Category {
-        FoodAndNonAlcoholicBeverages,
-        RestaurantsAndHotels,
-        AlcoholicBeveragesAndTobacco,
-        ClothingAndFootwear,
-        HousingWaterElectricityGasAndOtherFuels,
-        FurnishingsHouseholdEquipmentAndRoutineHouseholdMaintenance,
-        Health,
-        Transport,
-        Communication,
-        RecreationServicesAndCulture,
-        Education,
-        MiscGoodsAndServices
+        FoodAndBeverages,
+        Housing,
+        Apparel,
+        Transportation,
+        EducationAndCommunication,
+        OtherGoodsAndServices,
+        Recreation,
+        MedicalCare
     }
 
     modifier validCategory(Category category) {
         require(
-            uint8(category) >= 0 && uint8(category) <= 11,
-            "OrderSetLib(99) - Category must be between 0 and 11"
+            uint8(category) >= 0 && uint8(category) <= 7,
+            "OrderSetLib(99) - Category must be between 0 and 7"
         );
         _;
     }
@@ -41,6 +37,7 @@ library SellOrderSetLib {
         uint256 quantity; // Quantity of tokens being sold
         uint256 unitPrice; // Unit price of the tokens
         Category category; // Category of the sell order
+        uint256 dateSold; // Date the sell order was created
     }
 
     // Set structure containing a mapping of seller addresses to indices in the keyList array, and an array of SellOrders.
@@ -75,6 +72,15 @@ library SellOrderSetLib {
             "OrderSetLib(103) - Key already exists in the set."
         );
         // Check if the category is between 1 and 12.
+        require(
+            uint8(key.category) >= 0 && uint8(key.category) <= 11,
+            "OrderSetLib(104) - Category must be between 0 and 11"
+        );
+        // Check if the dateSold is block.timestamp.
+        require(
+            key.dateSold == block.timestamp,
+            "OrderSetLib(105) - Date sold must be block.timestamp"
+        );
 
         // If all checks pass, add the SellOrder to the keyList array.
         self.keyList.push(key);
@@ -263,16 +269,102 @@ library SellOrderSetLib {
         return result;
     }
 
+    // TODO: get Consumer Price Index (CPI)
+    // CPI_t	=   consumer price index in current period
+    // C_t	    =	cost of market basket in current period
+    // C_0	    =	cost of market basket in base period
+    //  where current period  = current year
+    //  where base period     = prior year
+    // https://www.investopedia.com/terms/c/consumerpriceindex.asp
+
+    // get yearly CPI of the set
     /**
-     * Get the total cost of tokens being sold in the set
+     * Get yearly Consumer Price Index (CPI) of the set
      *
      * @param self Set The set of sell orders
-     * @return uint256 The total cost of tokens being sold in the set
+     * @return uint256 The Consumer Price Index (CPI) of the set
      */
-    function totalSales(Set storage self) internal view returns (uint256) {
+    function getYearlyCPI(Set storage self) internal view returns (uint256) {
+        uint256 currentCost = _totalSalesByDate(self, block.timestamp);
+        uint256 priorCost = _totalSalesByDate(self, block.timestamp - 365 days);
+        return _getCPI(currentCost, priorCost);
+    }
+
+    /**
+     * Get monthly Consumer Price Index (CPI) of the set
+     *
+     * @param self Set The set of sell orders
+     * @return uint256 The Consumer Price Index (CPI) of the set
+     */
+    function getMonthlyCPI(Set storage self) internal view returns (uint256) {
+        uint256 currentCost = _totalSalesByDate(self, block.timestamp);
+        uint256 priorCost = _totalSalesByDate(self, block.timestamp - 30 days);
+        return _getCPI(currentCost, priorCost);
+    }
+
+    /**
+     * Get yearly inflation rate of the set
+     *
+     * @param self Set The set of sell orders
+     * @return uint256 The yearly inflation rate of the set
+     */
+    function getYearlyInflationRate(
+        Set storage self
+    ) internal view returns (uint256) {
+        uint256 newCPI = getYearlyCPI(self);
+        uint256 oldCPI = getYearlyCPI(self);
+        return _getInflationRate(newCPI, oldCPI);
+    }
+
+    /**
+     * Get monthly inflation rate of the set
+     *
+     * @param self Set The set of sell orders
+     * @return uint256 The monthly inflation rate of the set
+     */
+    function getMonthlyInflationRate(
+        Set storage self
+    ) internal view returns (uint256) {
+        uint256 newCPI = getMonthlyCPI(self);
+        uint256 oldCPI = getMonthlyCPI(self);
+        return _getInflationRate(newCPI, oldCPI);
+    }
+
+    /**
+     * Get overall total sales of tokens being sold in the set
+     *
+     * @param self Set The set of sell orders
+     * @return uint256 The total sales of tokens being sold in the set
+     */
+    function _totalSales(Set storage self) internal view returns (uint256) {
         uint256 totalCost = 0;
         for (uint256 i = 0; i < self.keyList.length; i++) {
             totalCost += self.keyList[i].quantity * self.keyList[i].unitPrice;
+        }
+        return totalCost;
+    }
+
+    /**
+     * Get the total sales of tokens being sold in the set by a specific date
+     *
+     * @param self Set The set of sell orders
+     * @param dateSold string The date to filter by
+     * @return uint256 The total sales of tokens being sold in the set by a specific date
+     */
+    function _totalSalesByDate(
+        Set storage self,
+        uint256 dateSold
+    ) internal view returns (uint256) {
+        uint256 totalCost = 0;
+        for (uint256 i = 0; i < self.keyList.length; i++) {
+            if (
+                keccak256(abi.encodePacked(self.keyList[i].dateSold)) ==
+                keccak256(abi.encodePacked(dateSold))
+            ) {
+                totalCost +=
+                    self.keyList[i].quantity *
+                    self.keyList[i].unitPrice;
+            }
         }
         return totalCost;
     }
@@ -284,7 +376,7 @@ library SellOrderSetLib {
      * @param category uint256 The category to filter by
      * @return uint256 The total cost of tokens being sold in the set by a specific category
      */
-    function totalSalesByCategory(
+    function _totalSalesByCategory(
         Set storage self,
         Category category
     ) internal view validCategory(category) returns (uint256) {
@@ -297,5 +389,49 @@ library SellOrderSetLib {
             }
         }
         return totalCost;
+    }
+
+    /**
+     * Get the total cost of tokens being sold in the set by a specific category and date
+     *
+     * @param self Set The set of sell orders
+     * @param category uint256 The category to filter by
+     * @param dateSold string The date to filter by
+     * @return uint256 The total cost of tokens being sold in the set by a specific category and date
+     */
+    function _totalSalesByCategoryAndDate(
+        Set storage self,
+        Category category,
+        uint256 dateSold
+    ) internal view validCategory(category) returns (uint256) {
+        uint256 totalCost = 0;
+        for (uint256 i = 0; i < self.keyList.length; i++) {
+            if (
+                Category(self.keyList[i].category) == category &&
+                keccak256(abi.encodePacked(self.keyList[i].dateSold)) ==
+                keccak256(abi.encodePacked(dateSold))
+            ) {
+                totalCost +=
+                    self.keyList[i].quantity *
+                    self.keyList[i].unitPrice;
+            }
+        }
+        return totalCost;
+    }
+
+    // get consumer price index (CPI)
+    function _getCPI(
+        uint256 currentCost,
+        uint256 priorCost
+    ) internal pure returns (uint256) {
+        return (currentCost / priorCost) * 100;
+    }
+
+    // get inflation rate
+    function _getInflationRate(
+        uint256 newCPI,
+        uint256 oldCPI
+    ) internal pure returns (uint256) {
+        return ((newCPI - oldCPI) / oldCPI) * 100;
     }
 }

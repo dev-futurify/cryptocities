@@ -35,6 +35,8 @@ contract SteadyMarketplace is Context, Ownable {
         string vendorName;
         string vendorDescription;
         VendorCollection[] vendorCollections;
+        uint256 dateCreated;
+        uint256 dateUpdated;
     }
     // VendorCollection data structure to store vendor collection details
     struct VendorCollection {
@@ -45,6 +47,8 @@ contract SteadyMarketplace is Context, Ownable {
         string collectionDescription;
         uint256 collectionTotalSales;
         uint256 collectionTotalSalesByCategory;
+        uint256 dateCreated;
+        uint256 dateUpdated;
     }
 
     // Mapping to store vendor details
@@ -66,7 +70,9 @@ contract SteadyMarketplace is Context, Ownable {
         // Unit price of each token
         uint256 unitPrice,
         // Category of the NFT
-        SellOrderSetLib.Category category
+        SellOrderSetLib.Category category,
+        // Date when the NFT was created
+        uint256 date
     );
 
     // Event to indicate a token is unlisted from sale
@@ -102,7 +108,11 @@ contract SteadyMarketplace is Context, Ownable {
         // Name of the vendor
         string name,
         // Description of the vendor
-        string description
+        string description,
+        // Date when the vendor was created
+        uint256 dateCreated,
+        // Date when the vendor was updated
+        uint256 dateUpdated
     );
 
     // Event when vendor is updated
@@ -112,7 +122,9 @@ contract SteadyMarketplace is Context, Ownable {
         // Name of the vendor
         string name,
         // Description of the vendor
-        string description
+        string description,
+        // Date when the vendor was updated
+        uint256 dateUpdated
     );
 
     // Event when new vendor collection is created
@@ -126,7 +138,11 @@ contract SteadyMarketplace is Context, Ownable {
         // Name of the vendor
         string vendorName,
         // Description of the vendor
-        string vendorDescription
+        string vendorDescription,
+        // Date when the vendor was created
+        uint256 dateCreated,
+        // Date when the vendor was updated
+        uint256 dateUpdated
     );
 
     // Event when vendor collection is updated
@@ -140,7 +156,9 @@ contract SteadyMarketplace is Context, Ownable {
         // Name of the vendor
         string vendorName,
         // Description of the vendor
-        string vendorDescription
+        string vendorDescription,
+        // Date when the vendor was updated
+        uint256 dateUpdated
     );
 
     // modifier to check if the caller is a vendor
@@ -209,19 +227,22 @@ contract SteadyMarketplace is Context, Ownable {
         string memory name,
         string memory description
     ) external payable paidVendorFee {
+        uint256 newDate = block.timestamp;
         // Create a new vendor with push
         Vendor memory v = Vendor(
             _msgSender(),
             name,
             description,
-            new VendorCollection[](0)
+            new VendorCollection[](0),
+            newDate,
+            newDate
         );
 
         // Add the vendor to the vendors mapping
         vendors[_msgSender()] = v;
 
         // Emit the VendorCreated event
-        emit VendorCreated(_msgSender(), name, description);
+        emit VendorCreated(_msgSender(), name, description, newDate, newDate);
     }
 
     /**
@@ -239,6 +260,7 @@ contract SteadyMarketplace is Context, Ownable {
         string memory name,
         string memory description
     ) external payable onlyVendor {
+        uint256 newDate = block.timestamp;
         // Create a new vendor collection with push
         VendorCollection memory vc = VendorCollection(
             collectionId,
@@ -247,7 +269,9 @@ contract SteadyMarketplace is Context, Ownable {
             name,
             description,
             0,
-            0
+            0,
+            newDate,
+            newDate
         );
 
         // Add the vendor collection to the vendor collections mapping
@@ -262,7 +286,9 @@ contract SteadyMarketplace is Context, Ownable {
             collectionId,
             collectionAddress,
             name,
-            description
+            description,
+            newDate,
+            newDate
         );
     }
 
@@ -275,10 +301,13 @@ contract SteadyMarketplace is Context, Ownable {
         string memory name,
         string memory description
     ) external payable onlyVendor {
+        uint256 newDate = block.timestamp;
+
         vendors[_msgSender()].vendorName = name;
         vendors[_msgSender()].vendorDescription = description;
+        vendors[_msgSender()].dateUpdated = newDate;
 
-        emit VendorUpdated(_msgSender(), name, description);
+        emit VendorUpdated(_msgSender(), name, description, newDate);
     }
 
     /**
@@ -293,16 +322,19 @@ contract SteadyMarketplace is Context, Ownable {
         string memory name,
         string memory description
     ) external payable onlyVendor validCollection(collectionAddress) {
+        uint256 newDate = block.timestamp;
         vendorCollections[collectionAddress].collectionName = name;
         vendorCollections[collectionAddress]
             .collectionDescription = description;
+        vendorCollections[collectionAddress].dateUpdated = newDate;
 
         emit VendorCollectionUpdated(
             _msgSender(),
             vendorCollections[collectionAddress].collectionId,
             collectionAddress,
             name,
-            description
+            description,
+            newDate
         );
     }
 
@@ -317,7 +349,6 @@ contract SteadyMarketplace is Context, Ownable {
      * @param category       - The category of the NFT.
      */
 
-    //  TO BE REVISED
     function createSellOrder(
         uint256 nftId,
         address contractAddress,
@@ -384,12 +415,15 @@ contract SteadyMarketplace is Context, Ownable {
             revert("Unsupported token type.");
         }
 
+        uint256 newDate = block.timestamp;
+
         // Create a new sell order using the SellOrder constructor
         SellOrderSetLib.SellOrder memory o = SellOrderSetLib.SellOrder(
             _msgSender(),
             noOfTokensForSale,
             unitPrice,
-            SellOrderSetLib.Category(category)
+            SellOrderSetLib.Category(category),
+            newDate
         );
         nftOrders.insert(o);
 
@@ -400,7 +434,8 @@ contract SteadyMarketplace is Context, Ownable {
             contractAddress,
             noOfTokensForSale,
             unitPrice,
-            category
+            category,
+            newDate
         );
     }
 
@@ -588,9 +623,12 @@ contract SteadyMarketplace is Context, Ownable {
                 address(0),
                 0,
                 0,
-                SellOrderSetLib.Category(0)
+                SellOrderSetLib.Category(0),
+                0
             );
     }
+
+    //  TODO: get yearly and monthly CPI from SellOrderSetLib
 
     /**
      * getOrdersByCategory: This function retrieves the sell orders for the given token and category
@@ -624,38 +662,6 @@ contract SteadyMarketplace is Context, Ownable {
     ) external view returns (SellOrderSetLib.SellOrder[] memory) {
         bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
         return orders[orderId].ordersByAddressAndCategory(listedBy, category);
-    }
-
-    /**
-     * getTotalSales function returns the total sales on all categories
-     * @param nftId unique identifier of the token
-     * @param contractAddress address of the contract that holds the token
-     * @return total sales on all categories
-     */
-    function getTotalSales(
-        uint256 nftId,
-        address contractAddress
-    ) external view returns (uint256) {
-        bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
-        SellOrderSetLib.Set storage nftOrders = orders[orderId];
-        return nftOrders.totalSales();
-    }
-
-    /**
-     * getTotalSalesBasedOnCategory function returns the total sales on a given category
-     * @param nftId unique identifier of the token
-     * @param contractAddress address of the contract that holds the token
-     * @param category category of the token
-     * @return total sales on a given category
-     */
-    function getTotalSalesBasedOnCategory(
-        uint256 nftId,
-        address contractAddress,
-        SellOrderSetLib.Category category
-    ) external view returns (uint256) {
-        bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
-        SellOrderSetLib.Set storage nftOrders = orders[orderId];
-        return nftOrders.totalSalesByCategory(category);
     }
 
     /**

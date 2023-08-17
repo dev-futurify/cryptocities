@@ -15,19 +15,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SteadyCoin} from "./SteadyCoin.sol";
 import {SellOrderSetLib} from "./libraries/SellOrderSetLib.sol";
 
-interface ISteadyMarketplace {
-    function getTotalSales(
-        uint256 nftId,
-        address steadyMarketplaceAddress
-    ) external view returns (uint256);
-
-    function getTotalSalesBasedOnCategory(
-        uint256 nftId,
-        address steadyMarketplaceAddress,
-        SellOrderSetLib.Category category
-    ) external view returns (uint256);
-}
-
 contract SteadyEngine is ReentrancyGuard {
     error SteadyEngine__NeedsMoreThanZero();
     error SteadyEngine__TokenNotAllowed(address token);
@@ -38,7 +25,6 @@ contract SteadyEngine is ReentrancyGuard {
     error SteadyEngine__HealthFactorNotImproved();
 
     SteadyCoin private immutable i_stc;
-    ISteadyMarketplace private immutable i_marketplace;
 
     uint256 private constant LIQUIDATION_THRESHOLD = 50; // This means we need to be 200% over-collateralized
     uint256 private constant LIQUIDATION_BONUS = 10; // This means we get assets at a 10% discount when liquidating
@@ -83,9 +69,7 @@ contract SteadyEngine is ReentrancyGuard {
         _;
     }
 
-    constructor(address stcAddress, address steadyMarketplaceAddress) {
-        i_marketplace = ISteadyMarketplace(steadyMarketplaceAddress);
-
+    constructor(address stcAddress) {
         i_stc = SteadyCoin(stcAddress);
     }
 
@@ -289,18 +273,6 @@ contract SteadyEngine is ReentrancyGuard {
 
     function _healthFactor(address user) private view returns (uint256) {}
 
-    function _getOverallBasketValues(
-        uint256 nftId,
-        address steadyMarketplaceAddress
-    ) private view returns (uint256) {
-        // use Interface of getTotalSales
-        uint256 totalSales = i_marketplace.getTotalSales(
-            nftId,
-            steadyMarketplaceAddress
-        );
-        return totalSales;
-    }
-
     function _calculateHealthFactor(
         uint256 totalStcMinted,
         uint256 collateralValueInBasket
@@ -321,13 +293,6 @@ contract SteadyEngine is ReentrancyGuard {
         returns (uint256 totalStcMinted, uint256 collateralValueInBasket)
     {
         return _getAccountInformation(user);
-    }
-
-    function getOverallBasketValues(
-        uint256 nftId,
-        address steadyMarketplaceAddress
-    ) external view returns (uint256) {
-        return _getOverallBasketValues(nftId, steadyMarketplaceAddress);
     }
 
     function getCollateralBalanceOfUser(
