@@ -3,7 +3,7 @@ pragma solidity 0.8.19;
 
 /*
  * @title SteadyMarketplace
- * @ description A marketplace for CryptoCities "baskets" of good and services in the ecosystem.
+ * @description A marketplace for CryptoCities "baskets" of good and services in the ecosystem.
  * @author ricogustavo
  * @team Futurify x EpicStartups
  *

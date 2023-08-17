@@ -4,7 +4,8 @@ pragma solidity 0.8.19;
 /*
  * @title SteadyEngine
  * @description This contract is the core of the SteadyCoin system. It handles all the logic
- * for minting and redeeming STC, airdrops, as well as depositing and withdrawing collateral.
+ * for minting and redeeming STC, airdrops, as well as depositing and withdrawing based on
+ * consumer price index and inflation rate sourced from the Steady Marketplace contract.
  * @author ricogustavo
  * @team Futurify x EpicStartups
  *

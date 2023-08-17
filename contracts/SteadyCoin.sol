@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 
 /*
  * @title SteadyCoin
- * @description ERC20 token that can be minted and burned by the SteadyEngine smart contract.
+ * @description ERC20 token that can be minted and burned by the SteadyEngine contract.
  * @author ricogustavo
  * @team Futurify x EpicStartups
  *
