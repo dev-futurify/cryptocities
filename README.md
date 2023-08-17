@@ -62,3 +62,4 @@ References:
 1. Cryptocities: https://docs.google.com/document/d/1dOsyn1y-sQxV-P4S8tFBFoUEuzfMFfAou0bUEeE49xA
 2. Blockchain Economy: https://docs.google.com/document/d/1E2ytBCuSK4g2zLKyqJeCOHLqvxE5xfBELhcgPqZlKlk
 3. CPI Malaysia: https://www.economy.com/malaysia/consumer-price-index-cpi, https://open.dosm.gov.my/consumer-prices
+4.  CPI: https://www.investopedia.com/terms/c/consumerpriceindex.asp
