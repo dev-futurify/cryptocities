@@ -628,8 +628,6 @@ contract SteadyMarketplace is Context, Ownable {
             );
     }
 
-    //  TODO: get yearly and monthly CPI from SellOrderSetLib
-
     /**
      * getOrdersByCategory: This function retrieves the sell orders for the given token and category
      * @param nftId unique identifier of the token
