@@ -179,6 +179,8 @@ contract SteadyEngine is ReentrancyGuard {
     /*
      * @param recipients: The addresses of the recipients of the airdrop
      * @param amounts: The amounts of STC to airdrop to each recipient
+     * @notice This function will mint STC and transfer to the recipients
+     * when Inflation Rate threshold are met.
      */
     function airdropStc(
         address[] memory recipients,
