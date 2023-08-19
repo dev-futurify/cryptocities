@@ -34,10 +34,10 @@ SteadyCoin is considered exogenously collateralized, meaning its stability and v
 **Properties:**
 
 **Exogenously Collateralized**
-SteadyCoin is exogenously collateralized, meaning that its total supply is backed by the real-world assets represented in the dynamic NFT contract. The value of these assets ensures the stability and intrinsic value of SteadyCoin, providing trust to users and mitigating counterparty risks.
+SteadyCoin is exogenously collateralized, meaning that its total supply is backed by the real-world assets represented in the Steady Marketplace contract. The value of these assets ensures the stability and intrinsic value of SteadyCoin, providing trust to users and mitigating counterparty risks.
 
 **Pegged to Basket of Goods and Services**
-The stability of SteadyCoin is maintained by pegging it to the average price of a diversified basket of goods and services represented by the dynamic NFT contract. This basket's composition may evolve over time, reflecting changes in the market and ensuring an accurate representation of the economy.
+The stability of SteadyCoin is maintained by pegging it to the average price of a diversified basket of goods and services represented by the Steady Marketplace contract. This basket's composition may evolve over time, reflecting changes in the market and ensuring an accurate representation of the economy.
 
 **Algorithmically Stable**
 The algorithmic stability mechanism dynamically adjusts the supply of SteadyCoin based on the changes in the average price of the basket of goods and services. As the market fluctuates, the supply of SteadyCoin expands or contracts, ensuring that its value remains closely tied to the underlying assets.
@@ -54,10 +54,15 @@ SteadyCoin is an innovative stablecoin project with immense potential for growth
 
 ## Conclusion
 
-SteadyCoin represents a novel approach to stablecoin design, leveraging algorithmic stability and real-world asset collateralization to maintain a stable value. The integration of the dynamic NFT contract and the Engine contract ensures that the stablecoin remains resilient against market fluctuations. By pegging its value to a diversified basket of goods and services, SteadyCoin aims to provide users with a reliable, transparent, and secure stablecoin on the Polygon ZK-EVM blockchain.
+SteadyCoin represents a novel approach to stablecoin design, leveraging algorithmic stability and real-world asset collateralization to maintain a stable value. The integration of the Marketplace contract and the Engine contract ensures that the stablecoin remains resilient against market fluctuations. By pegging its value to a diversified basket of goods and services, SteadyCoin aims to provide users with a reliable, transparent, and secure stablecoin on the Polygon ZK-EVM blockchain.
 
 
-References:
+## Contribution
+
+Head over to [contribution](./docs/CONTRIBUTING.md) section for more details! 
+
+
+## References:
 
 1. Cryptocities: https://docs.google.com/document/d/1dOsyn1y-sQxV-P4S8tFBFoUEuzfMFfAou0bUEeE49xA
 2. Blockchain Economy: https://docs.google.com/document/d/1E2ytBCuSK4g2zLKyqJeCOHLqvxE5xfBELhcgPqZlKlk
