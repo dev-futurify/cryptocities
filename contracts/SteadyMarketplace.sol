@@ -16,19 +16,19 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-import {SellOrderSetLib} from "./libraries/SellOrderSetLib.sol";
+import {OrderSet} from "./libraries/OrderSet.sol";
 
 contract SteadyMarketplace is Context, Ownable {
     // Use SafeMath library for uint256 arithmetic operations
     using SafeMath for uint256;
-    // Use SellOrderSetLib for SellOrderSetLib.Set operations
-    using SellOrderSetLib for SellOrderSetLib.Set;
+    // Use OrderSet for OrderSet.Set operations
+    using OrderSet for OrderSet.Set;
 
     // charge a fee of 100 MATIC equivalent to become a vendor
     uint256 public constant VENDOR_FEE = 100 ether; // TODO: update vendor fee charge - to be revised
 
     // Mapping to store sell orders for different NFTs
-    mapping(bytes32 => SellOrderSetLib.Set) private orders;
+    mapping(bytes32 => OrderSet.Set) private orders;
 
     // Vendor data structure to store vendor details
     struct Vendor {
@@ -43,7 +43,7 @@ contract SteadyMarketplace is Context, Ownable {
     struct VendorCollection {
         uint256 collectionId;
         address collectionAddress; // TODO: create a new contract for each collection
-        SellOrderSetLib.Category category;
+        OrderSet.Category category;
         string collectionName;
         string collectionDescription;
         uint256 collectionTotalSales;
@@ -71,7 +71,7 @@ contract SteadyMarketplace is Context, Ownable {
         // Unit price of each token
         uint256 unitPrice,
         // Category of the NFT
-        SellOrderSetLib.Category category,
+        OrderSet.Category category,
         // Date when the NFT was created
         uint256 date
     );
@@ -257,7 +257,7 @@ contract SteadyMarketplace is Context, Ownable {
     function registerVendorCollection(
         uint256 collectionId,
         address collectionAddress,
-        SellOrderSetLib.Category category,
+        OrderSet.Category category,
         string memory name,
         string memory description
     ) external payable onlyVendor {
@@ -356,7 +356,7 @@ contract SteadyMarketplace is Context, Ownable {
         string memory nftType,
         uint256 unitPrice,
         uint256 noOfTokensForSale,
-        SellOrderSetLib.Category category
+        OrderSet.Category category
     ) external onlyVendor hasCreatedCollection {
         // Require that the unit price of each token must be greater than 0
         require(unitPrice > 0, "Price must be greater than 0.");
@@ -365,7 +365,7 @@ contract SteadyMarketplace is Context, Ownable {
         bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
 
         // Get the sell order set for the given NFT
-        SellOrderSetLib.Set storage nftOrders = orders[orderId];
+        OrderSet.Set storage nftOrders = orders[orderId];
 
         // Require that the token is not already listed for sale by the same owner
         require(
@@ -419,11 +419,11 @@ contract SteadyMarketplace is Context, Ownable {
         uint256 newDate = block.timestamp;
 
         // Create a new sell order using the SellOrder constructor
-        SellOrderSetLib.SellOrder memory o = SellOrderSetLib.SellOrder(
+        OrderSet.SellOrder memory o = OrderSet.SellOrder(
             _msgSender(),
             noOfTokensForSale,
             unitPrice,
-            SellOrderSetLib.Category(category),
+            OrderSet.Category(category),
             newDate
         );
         nftOrders.insert(o);
@@ -454,7 +454,7 @@ contract SteadyMarketplace is Context, Ownable {
         bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
 
         // Get the sell order set of the given NFT token.
-        SellOrderSetLib.Set storage nftOrders = orders[orderId];
+        OrderSet.Set storage nftOrders = orders[orderId];
 
         // Ensure that the sell order exists for the caller.
         require(
@@ -490,7 +490,7 @@ contract SteadyMarketplace is Context, Ownable {
         bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
 
         // Get the sell order set of the given NFT token.
-        SellOrderSetLib.Set storage nftOrders = orders[orderId];
+        OrderSet.Set storage nftOrders = orders[orderId];
 
         // Check if the token owner has a sell order for the given NFT.
         require(
@@ -499,7 +499,7 @@ contract SteadyMarketplace is Context, Ownable {
         );
 
         // Get the sell order for the given NFT by the token owner.
-        SellOrderSetLib.SellOrder storage sellOrder = nftOrders.orderByAddress(
+        OrderSet.SellOrder storage sellOrder = nftOrders.orderByAddress(
             tokenOwner
         );
 
@@ -589,7 +589,7 @@ contract SteadyMarketplace is Context, Ownable {
     function getOrders(
         uint256 nftId,
         address contractAddress
-    ) external view returns (SellOrderSetLib.SellOrder[] memory) {
+    ) external view returns (OrderSet.SellOrder[] memory) {
         bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
         return orders[orderId].allOrders();
     }
@@ -605,12 +605,12 @@ contract SteadyMarketplace is Context, Ownable {
         uint256 nftId,
         address contractAddress,
         address listedBy
-    ) public view returns (SellOrderSetLib.SellOrder memory) {
+    ) public view returns (OrderSet.SellOrder memory) {
         // Calculate the unique identifier for the order
         bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
 
         // Get the SellOrderSet for the NFT
-        SellOrderSetLib.Set storage nftOrders = orders[orderId];
+        OrderSet.Set storage nftOrders = orders[orderId];
 
         // Check if a SellOrder exists for the given owner
         if (nftOrders.orderExistsForAddress(listedBy)) {
@@ -619,14 +619,7 @@ contract SteadyMarketplace is Context, Ownable {
         }
 
         // Else, return empty SellOrder
-        return
-            SellOrderSetLib.SellOrder(
-                address(0),
-                0,
-                0,
-                SellOrderSetLib.Category(0),
-                0
-            );
+        return OrderSet.SellOrder(address(0), 0, 0, OrderSet.Category(0), 0);
     }
 
     /**
@@ -639,8 +632,8 @@ contract SteadyMarketplace is Context, Ownable {
     function getOrdersByCategory(
         uint256 nftId,
         address contractAddress,
-        SellOrderSetLib.Category category
-    ) external view returns (SellOrderSetLib.SellOrder[] memory) {
+        OrderSet.Category category
+    ) external view returns (OrderSet.SellOrder[] memory) {
         bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
         return orders[orderId].allOrdersByCategory(category);
     }
@@ -656,9 +649,9 @@ contract SteadyMarketplace is Context, Ownable {
     function getOrdersByCategoryAndAddress(
         uint256 nftId,
         address contractAddress,
-        SellOrderSetLib.Category category,
+        OrderSet.Category category,
         address listedBy
-    ) external view returns (SellOrderSetLib.SellOrder[] memory) {
+    ) external view returns (OrderSet.SellOrder[] memory) {
         bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
         return orders[orderId].ordersByAddressAndCategory(listedBy, category);
     }

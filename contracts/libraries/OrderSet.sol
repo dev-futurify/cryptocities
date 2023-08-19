@@ -2,7 +2,8 @@
 pragma solidity ^0.8.19;
 
 /*
- * @title SellOrderSetLib - Sell Order Set Library
+ * @title OrderSet - Steady Marketplace extension library for managing
+ * the basket of goods and services.
  * @author ricogustavo
  * @team Futurify x EpicStartups
  * @notice Reference to the Hitchens UnorderedKeySet library version 0.93
@@ -10,8 +11,8 @@ pragma solidity ^0.8.19;
  *
  */
 
-library SellOrderSetLib {
-    // Category enum representing the category of a sell order.
+library OrderSet {
+    // Category enum representing the major groups of the CPI
     enum Category {
         FoodAndBeverages,
         Housing,
@@ -269,15 +270,15 @@ library SellOrderSetLib {
         return result;
     }
 
-    // TODO: get Consumer Price Index (CPI)
-    // CPI_t	=   consumer price index in current period
-    // C_t	    =	cost of market basket in current period
-    // C_0	    =	cost of market basket in base period
-    //  where current period  = current year
-    //  where base period     = prior year
-    // https://www.investopedia.com/terms/c/consumerpriceindex.asp
+    /**
+     * Consumer Price Index (CPI) formula
+     * CPI_t	=   consumer price index in current period
+     * C_t	    =	cost of market basket in current period
+     * C_0	    =	cost of market basket in base period
+     *  where current period  = current year
+     *  where base period     = prior year
+     */
 
-    // get yearly CPI of the set
     /**
      * Get yearly Consumer Price Index (CPI) of the set
      *
