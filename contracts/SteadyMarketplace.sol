@@ -19,6 +19,21 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {OrderSet} from "./libraries/OrderSet.sol";
 
 contract SteadyMarketplace is Context, Ownable {
+    error SteadyMarketplace__OnlyVendor();
+    error SteadyMarketplace__VendorFeeNotPaid();
+    error SteadyMarketplace__VendorHasNotCreatedCollection();
+    error SteadyMarketplace__CollectionDoesNotExist();
+    error SteadyMarketplace__InsufficientBalance();
+    error SteadyMarketplace__CallerHasNotApprovedContractForTokenTransfer();
+    error SteadyMarketplace__CallerDoesNotOwnToken();
+    error SteadyMarketplace__TokenIsNotListedForSaleByTheOwner();
+    error SteadyMarketplace__AttemptingToBuyMoreThanAvailableForSale();
+    error SteadyMarketplace__LessETHProvidedForThePurchase();
+    error SteadyMarketplace__SellerHasRemovedContractsApprovalForTokenTransfer();
+    error SteadyMarketplace__FailedToSendEtherToTheTokenOwner();
+    error SteadyMarketplace__FailedToSendEtherToTheVendor();
+    error SteadyMarketplace__FailedToSendEtherToTheOwner();
+
     // Use SafeMath library for uint256 arithmetic operations
     using SafeMath for uint256;
     // Use OrderSet for OrderSet.Set operations
@@ -164,38 +179,36 @@ contract SteadyMarketplace is Context, Ownable {
 
     // modifier to check if the caller is a vendor
     modifier onlyVendor() {
-        require(
-            vendors[_msgSender()].vendorAddress == _msgSender(),
-            "Only registered vendors can perform this action."
-        );
+        if (vendors[_msgSender()].vendorAddress != _msgSender()) {
+            revert SteadyMarketplace__OnlyVendor();
+        }
         _;
     }
 
     // modifier to check if the user paid the vendor fee
     modifier paidVendorFee() {
-        require(
-            msg.value == VENDOR_FEE,
-            "Vendor fee must be paid to register as a vendor."
-        );
+        if (msg.value != VENDOR_FEE) {
+            revert SteadyMarketplace__VendorFeeNotPaid();
+        }
         _;
     }
 
     // modifier to check if the vendor has created a collection
     modifier hasCreatedCollection() {
-        require(
-            vendors[_msgSender()].vendorCollections.length > 0,
-            "Vendor must create a collection to perform this action."
-        );
+        if (vendors[_msgSender()].vendorCollections.length == 0) {
+            revert SteadyMarketplace__VendorHasNotCreatedCollection();
+        }
         _;
     }
 
     // modifier to check if the collection is valid
     modifier validCollection(address collectionAddress) {
-        require(
-            vendorCollections[collectionAddress].collectionAddress ==
-                collectionAddress,
-            "Collection does not exist"
-        );
+        if (
+            vendorCollections[collectionAddress].collectionAddress !=
+            collectionAddress
+        ) {
+            revert SteadyMarketplace__CollectionDoesNotExist();
+        }
         _;
     }
 
@@ -204,18 +217,19 @@ contract SteadyMarketplace is Context, Ownable {
         address collectionAddress,
         uint256 amount
     ) {
-        require(amount > 0, "Amount must be greater than 0");
-        require(
-            vendorCollections[collectionAddress].collectionTotalSales >= amount,
-            "Insufficient balance"
-        );
+        if (
+            vendorCollections[collectionAddress].collectionTotalSales < amount
+        ) {
+            revert SteadyMarketplace__InsufficientBalance();
+        }
         _;
     }
 
     // modifier to check if owner has sufficient balance
     modifier sufficientOwnerBalance(uint256 amount) {
-        require(amount > 0, "Amount must be greater than 0");
-        require(address(this).balance >= amount, "Insufficient balance");
+        if (address(this).balance < amount) {
+            revert SteadyMarketplace__InsufficientBalance();
+        }
         _;
     }
 
@@ -358,8 +372,9 @@ contract SteadyMarketplace is Context, Ownable {
         uint256 noOfTokensForSale,
         OrderSet.Category category
     ) external onlyVendor hasCreatedCollection {
-        // Require that the unit price of each token must be greater than 0
-        require(unitPrice > 0, "Price must be greater than 0.");
+        if (unitPrice <= 0) {
+            revert SteadyMarketplace__InsufficientBalance();
+        }
 
         // Get the unique identifier for the sell order
         bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
@@ -368,10 +383,9 @@ contract SteadyMarketplace is Context, Ownable {
         OrderSet.Set storage nftOrders = orders[orderId];
 
         // Require that the token is not already listed for sale by the same owner
-        require(
-            !nftOrders.orderExistsForAddress(_msgSender()),
-            "Token is already listed for sale by the given owner"
-        );
+        if (nftOrders.orderExistsForAddress(_msgSender())) {
+            revert SteadyMarketplace__InsufficientBalance();
+        }
 
         // Check if the NFT token is an ERC721 or ERC1155 token
         if (
@@ -382,16 +396,14 @@ contract SteadyMarketplace is Context, Ownable {
             IERC721 tokenContract = IERC721(contractAddress);
 
             // Require that the caller has approved the contract for token transfer
-            require(
-                tokenContract.isApprovedForAll(_msgSender(), address(this)),
-                "Caller has not approved contract for token transfer."
-            );
+            if (!tokenContract.isApprovedForAll(_msgSender(), address(this))) {
+                revert SteadyMarketplace__CallerHasNotApprovedContractForTokenTransfer();
+            }
 
             // Require that the caller owns the NFT token
-            require(
-                tokenContract.ownerOf(nftId) == _msgSender(),
-                "Caller does not own the token."
-            );
+            if (tokenContract.ownerOf(nftId) != _msgSender()) {
+                revert SteadyMarketplace__CallerDoesNotOwnToken();
+            }
         } else if (
             keccak256(abi.encodePacked(nftType)) ==
             keccak256(abi.encodePacked("erc1155"))
@@ -400,17 +412,16 @@ contract SteadyMarketplace is Context, Ownable {
             IERC1155 tokenContract = IERC1155(contractAddress);
 
             // Require that the caller has approved the contract for token transfer
-            require(
-                tokenContract.isApprovedForAll(_msgSender(), address(this)),
-                "Caller has not approved contract for token transfer."
-            );
+            if (!tokenContract.isApprovedForAll(_msgSender(), address(this))) {
+                revert SteadyMarketplace__CallerHasNotApprovedContractForTokenTransfer();
+            }
 
             // Require that the caller has sufficient balance of the NFT token
-            require(
-                tokenContract.balanceOf(_msgSender(), nftId) >=
-                    noOfTokensForSale,
-                "Insufficient token balance."
-            );
+            if (
+                tokenContract.balanceOf(_msgSender(), nftId) < noOfTokensForSale
+            ) {
+                revert SteadyMarketplace__InsufficientBalance();
+            }
         } else {
             // Revert if the NFT token is not of type ERC721 or ERC1155
             revert("Unsupported token type.");
@@ -457,10 +468,9 @@ contract SteadyMarketplace is Context, Ownable {
         OrderSet.Set storage nftOrders = orders[orderId];
 
         // Ensure that the sell order exists for the caller.
-        require(
-            nftOrders.orderExistsForAddress(_msgSender()),
-            "Given token is not listed for sale by the owner."
-        );
+        if (!nftOrders.orderExistsForAddress(_msgSender())) {
+            revert SteadyMarketplace__TokenIsNotListedForSaleByTheOwner();
+        }
 
         // Remove the sell order from the set.
         nftOrders.remove(nftOrders.orderByAddress(_msgSender()));
@@ -493,10 +503,9 @@ contract SteadyMarketplace is Context, Ownable {
         OrderSet.Set storage nftOrders = orders[orderId];
 
         // Check if the token owner has a sell order for the given NFT.
-        require(
-            nftOrders.orderExistsForAddress(tokenOwner),
-            "Given token is not listed for sale by the owner."
-        );
+        if (!nftOrders.orderExistsForAddress(tokenOwner)) {
+            revert SteadyMarketplace__TokenIsNotListedForSaleByTheOwner();
+        }
 
         // Get the sell order for the given NFT by the token owner.
         OrderSet.SellOrder storage sellOrder = nftOrders.orderByAddress(
@@ -504,14 +513,15 @@ contract SteadyMarketplace is Context, Ownable {
         );
 
         // Validate that the required buy quantity is available for sale
-        require(
-            sellOrder.quantity >= noOfTokensToBuy,
-            "Attempting to buy more than available for sale."
-        );
+        if (sellOrder.quantity < noOfTokensToBuy) {
+            revert SteadyMarketplace__AttemptingToBuyMoreThanAvailableForSale();
+        }
 
         // Validate that the buyer provided enough funds to make the purchase.
         uint256 buyPrice = sellOrder.unitPrice.mul(noOfTokensToBuy);
-        require(msg.value >= buyPrice, "Less ETH provided for the purchase.");
+        if (msg.value < buyPrice) {
+            revert SteadyMarketplace__LessETHProvidedForThePurchase();
+        }
 
         if (
             keccak256(abi.encodePacked(nftType)) ==
@@ -521,10 +531,9 @@ contract SteadyMarketplace is Context, Ownable {
             IERC721 tokenContract = IERC721(contractAddress);
 
             // Require that the caller has approved the contract for token transfer
-            require(
-                tokenContract.isApprovedForAll(tokenOwner, address(this)),
-                "Seller has removed contracts approval for token transfer."
-            );
+            if (!tokenContract.isApprovedForAll(tokenOwner, address(this))) {
+                revert SteadyMarketplace__SellerHasRemovedContractsApprovalForTokenTransfer();
+            }
 
             // Transfer ownership of the NFT from the token owner to the buyer.
             tokenContract.safeTransferFrom(tokenOwner, _msgSender(), nftId);
@@ -556,7 +565,9 @@ contract SteadyMarketplace is Context, Ownable {
 
         // Send the specified value of Ether from the buyer to the token owner
         bool sent = tokenOwner.send(msg.value);
-        require(sent, "Failed to send Ether to the token owner.");
+        if (!sent) {
+            revert SteadyMarketplace__FailedToSendEtherToTheTokenOwner();
+        }
 
         /**
          * Check if the quantity of tokens being sold in the sell order is equal to the number of tokens the buyer wants to purchase.
@@ -672,7 +683,9 @@ contract SteadyMarketplace is Context, Ownable {
     {
         vendorCollections[collectionAddress].collectionTotalSales -= amount;
         (bool vs, ) = _msgSender().call{value: amount}("");
-        require(vs, "Failed to send Ether to the vendor.");
+        if (!vs) {
+            revert SteadyMarketplace__FailedToSendEtherToTheVendor();
+        }
     }
 
     /**
@@ -684,7 +697,9 @@ contract SteadyMarketplace is Context, Ownable {
         sufficientOwnerBalance(address(this).balance)
     {
         (bool os, ) = owner().call{value: address(this).balance}("");
-        require(os, "Failed to send Ether to the owner.");
+        if (!os) {
+            revert SteadyMarketplace__FailedToSendEtherToTheOwner();
+        }
     }
 
     // _getOrdersMapId function generates the unique identifier for a given NFT id and contract address

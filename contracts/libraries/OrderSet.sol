@@ -12,6 +12,14 @@ pragma solidity ^0.8.19;
  */
 
 library OrderSet {
+    error OrderSetLib__SellOrderCannotBeListedByZeroAddress();
+    error OrderSetLib__SellOrderCannotHaveZeroTokenCount();
+    error OrderSetLib__SellOrderCannotHaveZeroTokenPrice();
+    error OrderSetLib__KeyAlreadyExistsInSet();
+    error OrderSetLib__CategoryMustBeBetween0And7();
+    error OrderSetLib__DateSoldMustBeBlockTimestamp();
+    error OrderSetLib__KeyDoesNotExistInSet();
+
     // Category enum representing the major groups of the CPI
     enum Category {
         FoodAndBeverages,
@@ -25,10 +33,9 @@ library OrderSet {
     }
 
     modifier validCategory(Category category) {
-        require(
-            uint8(category) >= 0 && uint8(category) <= 7,
-            "OrderSetLib(99) - Category must be between 0 and 7"
-        );
+        if (uint8(category) < 0 || uint8(category) > 7) {
+            revert OrderSetLib__CategoryMustBeBetween0And7();
+        }
         _;
     }
 
@@ -53,35 +60,34 @@ library OrderSet {
         SellOrder memory key
     ) internal validCategory(Category(key.category)) {
         // Check if the seller address is address(0), which is not allowed.
-        require(
-            key.listedBy != address(0),
-            "OrderSetLib(100) - Sell Order cannot be listed by address(0)"
-        );
+        if (key.listedBy == address(0)) {
+            revert OrderSetLib__SellOrderCannotBeListedByZeroAddress();
+        }
+
         // Check if the quantity of tokens being sold is greater than 0.
-        require(
-            key.quantity > 0,
-            "OrderSetLib(101) - Sell Order cannot have 0 token count"
-        );
+        if (key.quantity <= 0) {
+            revert OrderSetLib__SellOrderCannotHaveZeroTokenCount();
+        }
+
         // Check if the unit price of the tokens is greater than 0.
-        require(
-            key.unitPrice > 0,
-            "OrderSetLib(102) - Sell Order cannot have 0 token price"
-        );
+        if (key.unitPrice <= 0) {
+            revert OrderSetLib__SellOrderCannotHaveZeroTokenPrice();
+        }
+
         // Check if the SellOrder is already in the Set.
-        require(
-            !exists(self, key),
-            "OrderSetLib(103) - Key already exists in the set."
-        );
-        // Check if the category is between 1 and 12.
-        require(
-            uint8(key.category) >= 0 && uint8(key.category) <= 11,
-            "OrderSetLib(104) - Category must be between 0 and 11"
-        );
+        if (exists(self, key)) {
+            revert OrderSetLib__KeyAlreadyExistsInSet();
+        }
+
+        // Check if the category is between 1 and 8.
+        if (uint8(key.category) < 0 || uint8(key.category) > 7) {
+            revert OrderSetLib__CategoryMustBeBetween0And7();
+        }
+
         // Check if the dateSold is block.timestamp.
-        require(
-            key.dateSold == block.timestamp,
-            "OrderSetLib(105) - Date sold must be block.timestamp"
-        );
+        if (key.dateSold != block.timestamp) {
+            revert OrderSetLib__DateSoldMustBeBlockTimestamp();
+        }
 
         // If all checks pass, add the SellOrder to the keyList array.
         self.keyList.push(key);
@@ -93,10 +99,9 @@ library OrderSet {
         Set storage self,
         SellOrder memory key
     ) internal validCategory(Category(key.category)) {
-        require(
-            exists(self, key),
-            "OrderSetLib(104) - Sell Order does not exist in the set."
-        );
+        if (!exists(self, key)) {
+            revert OrderSetLib__KeyDoesNotExistInSet();
+        }
 
         // Store the last sell order in the keyList in memory
         SellOrder memory keyToMove = self.keyList[count(self) - 1];
