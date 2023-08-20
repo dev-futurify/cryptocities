@@ -24,15 +24,13 @@ cd cryptocities
 3. Create a new branch for your contributions.
 ```sh
 git checkout -b your-branch-name
-Make your changes, commit them, and push to your forked repository.
 ```
 
-4. Make and save your changes
+4. Make your changes, commit them, and push to your forked repository.
 ```sh
 git add .
 git commit -m "Description of your changes"
 git push origin your-branch-name
-Create a pull request to the main repository.
 ```
 
 5. Go to the Pull Requests tab of the repository.
@@ -82,7 +80,7 @@ If you encounter a bug, have a question, or want to suggest an improvement, chec
 
 When contributing, please adhere to our Code of Conduct. We expect all contributors to follow these guidelines to create a respectful and inclusive environment for everyone.
 
-Thank You
+#### Thank You
 Thank you for your interest in contributing to our project! Your contributions help make our project better and more useful for the community.
 
 If you have any questions, feel free to reach out to us in the [Discussion](https://github.com/orgs/dev-futurify/discussions) section.
