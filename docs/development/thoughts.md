@@ -71,8 +71,10 @@ Q: collectionAddress and contractAddress can be the same?
     - However, in the context of the Housing category for eg, the NFT will not undergo the burning process, as it represents a long-term ownership of a property.
 
 
-16. Also, we also need to measure the CPI based on their `weight` - to be sync w/ the world's CPI category weight
-    - These are CPI Categories by Weight as of July 2023 based on investopedia 
+16. Also, we also need to measure the CPI based on their `weight` - to be sync w/ the world's CPI category weight.
+
+- These are CPI Categories by Weight as of July 2023 based on investopedia
+
     | Group            | Weight   |
     |------------------|----------|
     | Housing          | 34.7%    |
