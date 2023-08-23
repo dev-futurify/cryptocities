@@ -13,7 +13,7 @@ local@network:
 deploy@local:
 	npx hardhat run --network localhost scripts/deploy.ts
 
-deploy:
+deploy@network:
 	npx hardhat run scripts/testDeploy.js --network ${NETWORK}
 
 verify@contract:
