@@ -668,6 +668,24 @@ contract SteadyMarketplace is Context, Ownable {
     }
 
     /**
+     * getYearlyCPI function returns the yearly CPI
+     * @return yearly CPI
+     */
+    function getYearlyCPI() external view returns (uint256) {
+        bytes32 orderId = _getOrdersMapId(0, address(this));
+        return orders[orderId].getYearlyCPI();
+    }
+
+    /**
+     * getIR function returns the yearly inflation rate
+     * @return yearly CPI
+     */
+    function getYearlyInflationRate() external view returns (uint256) {
+        bytes32 orderId = _getOrdersMapId(0, address(this));
+        return orders[orderId].getYearlyInflationRate();
+    }
+
+    /**
      * vendorWithdrawal function allows the vendor to withdraw their funds from their gains in the their associated collections
      * @param collectionAddress address of the collection that holds the token
      * @param amount amount to be withdrawn

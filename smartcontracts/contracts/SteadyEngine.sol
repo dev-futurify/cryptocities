@@ -142,25 +142,6 @@ contract SteadyEngine is ReentrancyGuard {
     }
 
     /*
-     * @param collateral: The ERC20 token address of the collateral we're using to make the protocol solvent again.
-     * This is collateral that we're going to take from the user who is insolvent.
-     * In return, we have to burn your STC to pay off their debt, but we don't pay off your own.
-     * @param user: The user who is insolvent. They have to have a _healthFactor below MIN_HEALTH_FACTOR
-     * @param debtToCover: The amount of STC we want to burn to cover the user's debt.
-     *
-     * @notice: You can partially liquidate a user.
-     * @notice: You will get a 10% LIQUIDATION_BONUS for taking the users funds.
-     * @notice: This function working assumes that the protocol will be roughly 150% overcollateralized in order for this to work.
-     * @notice: A known bug would be if the protocol was only 100% collateralized, we wouldn't be able to liquidate anyone.
-     * For example, if the price of the collateral plummeted before anyone could be liquidated.
-     */
-    function liquidate(
-        address collateral,
-        address user,
-        uint256 debtToCover
-    ) external moreThanZero(debtToCover) nonReentrant {}
-
-    /*
      * @param amountStcToMint: The amount of STC we want to mint
      * You can only mint STC if we hav enough collateral
      */
@@ -270,49 +251,78 @@ contract SteadyEngine is ReentrancyGuard {
 
     function _getAccountInformation(
         address user
-    )
-        private
-        view
-        returns (uint256 totalStcMinted, uint256 collateralValueInBasket)
-    {}
+    ) private view returns (uint256 totalDscMinted, uint256 collateralValue) {
+        totalDscMinted = s_STCMinted[user];
+        collateralValue = getAccountCollateralValue(user);
+    }
 
-    function _healthFactor(address user) private view returns (uint256) {}
+    function _healthFactor(address user) private view returns (uint256) {
+        (
+            uint256 totalDscMinted,
+            uint256 collateralValue
+        ) = _getAccountInformation(user);
+        return _calculateHealthFactor(totalDscMinted, collateralValue);
+    }
+
+    function _getYearlyCPI() private view returns (uint256) {
+        return i_marketplace.getYearlyCPI();
+    }
+
+    function _getYearlyInflationRate() private view returns (uint256) {
+        return i_marketplace.getYearlyInflationRate();
+    }
 
     function _calculateHealthFactor(
-        uint256 totalStcMinted,
-        uint256 collateralValueInBasket
-    ) internal pure returns (uint256) {}
+        uint256 totalDscMinted,
+        uint256 collateralValue
+    ) internal pure returns (uint256) {
+        if (totalDscMinted == 0) return type(uint256).max;
+        uint256 collateralAdjustedForThreshold = (collateralValue *
+            LIQUIDATION_THRESHOLD) / 100;
+        return (collateralAdjustedForThreshold * 1e18) / totalDscMinted;
+    }
 
-    function revertIfHealthFactorIsBroken(address user) internal view {}
+    function revertIfHealthFactorIsBroken(address user) internal view {
+        uint256 userHealthFactor = _healthFactor(user);
+        if (userHealthFactor < MIN_HEALTH_FACTOR) {
+            revert SteadyEngine__BreaksHealthFactor(userHealthFactor);
+        }
+    }
 
     function calculateHealthFactor(
-        uint256 totalStcMinted,
-        uint256 collateralValueInBasket
-    ) external pure returns (uint256) {}
+        uint256 totalDscMinted,
+        uint256 collateralValue
+    ) external pure returns (uint256) {
+        return _calculateHealthFactor(totalDscMinted, collateralValue);
+    }
 
     function getAccountInformation(
         address user
-    )
-        external
-        view
-        returns (uint256 totalStcMinted, uint256 collateralValueInBasket)
-    {
+    ) external view returns (uint256 totalDscMinted, uint256 collateralValue) {
         return _getAccountInformation(user);
     }
 
     function getCollateralBalanceOfUser(
         address user,
         address token
-    ) external view returns (uint256) {}
+    ) external view returns (uint256) {
+        return s_collateralDeposited[user][token];
+    }
 
     function getAccountCollateralValue(
         address user
-    ) public view returns (uint256 totalCollateralValueInBaskets) {}
-
-    function getTokenAmountFromBasket(
-        address token,
-        uint256 basketAmountInWei
-    ) public view returns (uint256) {}
+    ) public view returns (uint256 totalCollateralValue) {
+        for (uint256 index = 0; index < s_collateralTokens.length; index++) {
+            address token = s_collateralTokens[index];
+            uint256 amount = s_collateralDeposited[user][token];
+            uint256 cpiChange = _getYearlyCPI();
+            uint256 inflationRate = _getYearlyInflationRate();
+            uint256 adjustedCollateralValue = (((amount * (100 + cpiChange)) /
+                100) * (100 + inflationRate)) / 100;
+            totalCollateralValue += adjustedCollateralValue;
+        }
+        return totalCollateralValue;
+    }
 
     function getPrecision() external pure returns (uint256) {
         return PRECISION;
