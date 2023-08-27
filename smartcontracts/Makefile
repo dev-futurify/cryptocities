@@ -1,10 +1,10 @@
 compile:
 	npx hardhat compile
 
-test:
+test@contract:
 	npx hardhat test
 
-test@report-gas:
+test@contract-gas:
 	REPORT_GAS=true npx hardhat test
 
 local@network:

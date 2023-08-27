@@ -16,7 +16,14 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SteadyCoin} from "./SteadyCoin.sol";
 import {SteadyMarketplace} from "./SteadyMarketplace.sol";
 
+interface ISteadyFormula {
+    function getYearlyCPI() external view returns (uint256);
+
+    function getYearlyInflationRate() external view returns (uint256);
+}
+
 contract SteadyEngine is ReentrancyGuard {
+    error SteadyEngine__OnlyOwner();
     error SteadyEngine__NeedsMoreThanZero();
     error SteadyEngine__TokenNotAllowed(address token);
     error SteadyEngine__TransferFailed();
@@ -27,6 +34,7 @@ contract SteadyEngine is ReentrancyGuard {
 
     SteadyCoin private immutable i_stc;
     SteadyMarketplace private immutable i_marketplace;
+    ISteadyFormula private i_formula;
 
     uint256 private constant LIQUIDATION_THRESHOLD = 50; // This means we need to be 200% over-collateralized
     uint256 private constant LIQUIDATION_BONUS = 10; // This means we get assets at a 10% discount when liquidating
@@ -57,6 +65,13 @@ contract SteadyEngine is ReentrancyGuard {
         uint256 amount
     ); // if redeemFrom != redeemedTo, then it was liquidated
 
+    modifier onlyOwner() {
+        if (msg.sender != i_marketplace.owner()) {
+            revert SteadyEngine__OnlyOwner();
+        }
+        _;
+    }
+
     modifier moreThanZero(uint256 amount) {
         if (amount == 0) {
             revert SteadyEngine__NeedsMoreThanZero();
@@ -71,9 +86,14 @@ contract SteadyEngine is ReentrancyGuard {
         _;
     }
 
-    constructor(address stcAddress, address steadyMarketplaceAddress) {
-        i_marketplace = SteadyMarketplace(steadyMarketplaceAddress);
+    constructor(
+        address stcAddress,
+        address steadyMarketplaceAddress,
+        address steadyFormulaAddress
+    ) {
         i_stc = SteadyCoin(stcAddress);
+        i_marketplace = SteadyMarketplace(steadyMarketplaceAddress);
+        i_formula = ISteadyFormula(steadyFormulaAddress);
     }
 
     /*
@@ -264,14 +284,6 @@ contract SteadyEngine is ReentrancyGuard {
         return _calculateHealthFactor(totalDscMinted, collateralValue);
     }
 
-    function _getYearlyCPI() private view returns (uint256) {
-        return i_marketplace.getYearlyCPI();
-    }
-
-    function _getYearlyInflationRate() private view returns (uint256) {
-        return i_marketplace.getYearlyInflationRate();
-    }
-
     function _calculateHealthFactor(
         uint256 totalDscMinted,
         uint256 collateralValue
@@ -280,6 +292,14 @@ contract SteadyEngine is ReentrancyGuard {
         uint256 collateralAdjustedForThreshold = (collateralValue *
             LIQUIDATION_THRESHOLD) / 100;
         return (collateralAdjustedForThreshold * 1e18) / totalDscMinted;
+    }
+
+    function _getYearlyCPI() private view returns (uint256) {
+        return i_formula.getYearlyCPI();
+    }
+
+    function _getYearlyInflationRate() private view returns (uint256) {
+        return i_formula.getYearlyInflationRate();
     }
 
     function revertIfHealthFactorIsBroken(address user) internal view {
@@ -322,6 +342,11 @@ contract SteadyEngine is ReentrancyGuard {
             totalCollateralValue += adjustedCollateralValue;
         }
         return totalCollateralValue;
+    }
+
+    // change the contract address of the formula and only the owner can call this function
+    function changeFormulaAddress(address newAddress) external onlyOwner {
+        i_formula = ISteadyFormula(newAddress);
     }
 
     function getPrecision() external pure returns (uint256) {

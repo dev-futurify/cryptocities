@@ -19,11 +19,11 @@ const config: HardhatUserConfig = {
       url: process.env.ZKEVM_TESTNET_RPC_URL,
       accounts: [process.env.TEST_WALLET_PRIVATE_KEY || ""],
     },
-    zkEVM_mainnet: {
-      chainId: 1101,
-      url: process.env.ZKEVM_MAINNET_RPC_URL,
-      accounts: [process.env.WALLET_PRIVATE_KEY || ""],
-    },
+    // zkEVM_mainnet: {
+    //   chainId: 1101,
+    //   url: process.env.ZKEVM_MAINNET_RPC_URL,
+    //   accounts: [process.env.WALLET_PRIVATE_KEY || ""],
+    // },
   },
   etherscan: {
     apiKey: process.env.ZKEVM_POLYGONSCAN_KEY,
