@@ -10,10 +10,14 @@ pragma solidity 0.8.19;
  *
  */
 
+import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {OrderSet} from "./libraries/OrderSet.sol";
 
 contract SteadyFormula {
     error SteadyFormula__CategoryMustBeBetween0And7();
+
+    // Use SafeMath library for uint256 arithmetic operations
+    using SafeMath for uint256;
 
     // Use OrderSet for OrderSet.Set operations
     using OrderSet for OrderSet.Set;
