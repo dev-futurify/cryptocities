@@ -96,3 +96,11 @@ Q: collectionAddress and contractAddress can be the same?
 
     - **Innovation and Feature Development:**
     The fee can be directed towards continuous innovation and the development of new features that enhance the marketplace's functionality and user experience. This could include the implementation of advanced search and recommendation algorithms, integration with emerging technologies like blockchain for improved transparency, and the creation of user-friendly mobile applications. Investing in innovation helps the platform stay competitive and provides users with compelling reasons to choose and stay on the marketplace.
+
+
+18. Basic Circular economy (version 1)
+    - Pay 10% of staff salary with the SteadyCoin
+    - People buy and sell on the marketplace using SteadyCoin
+
+19. JUST REMOVE NFT -> ERC 721 and ERC1155 from the steady marketplace contract for version 1
+    - ACT like a web2 marketplace only and save all the records in the `struct`
