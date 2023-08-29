@@ -39,25 +39,25 @@ contract SteadyMarketplace is Context, Ownable {
     // Use OrderSet for OrderSet.Set operations
     using OrderSet for OrderSet.Set;
 
-    // charge a fee of 100 MATIC equivalent to become a vendor
-    uint256 public constant VENDOR_FEE = 100 ether; // TODO: update vendor fee charge - to be revised
+    // charge a fee of 100 Steady Coin to become a vendor
+    uint256 public constant VENDOR_FEE = 100 ether;
 
-    // Mapping to store sell orders for different NFTs
-    mapping(bytes32 => OrderSet.Set) private orders;
+    // Mapping to store sell orders for different orders
+    mapping(uint256 => OrderSet.Set) private orders;
 
     // Vendor data structure to store vendor details
     struct Vendor {
-        address vendorAddress; // TODO: create a new contract for each vendor
+        address vendorAddress;
         string vendorName;
         string vendorDescription;
-        VendorCollection[] vendorCollections;
+        VendorShop[] VendorShops;
         uint256 dateCreated;
         uint256 dateUpdated;
     }
-    // VendorCollection data structure to store vendor collection details
-    struct VendorCollection {
+    // VendorShop data structure to store vendor shop details
+    struct VendorShop {
         uint256 collectionId;
-        address collectionAddress; // TODO: create a new contract for each collection
+        address collectionAddress;
         OrderSet.Category category;
         string collectionName;
         string collectionDescription;
@@ -68,7 +68,7 @@ contract SteadyMarketplace is Context, Ownable {
     }
 
     // Mapping to store vendor details
-    mapping(address => VendorCollection) public vendorCollections;
+    mapping(address => VendorShop) public VendorShops;
 
     // Mapping to store vendor details
     mapping(address => Vendor) public vendors;
@@ -77,17 +77,15 @@ contract SteadyMarketplace is Context, Ownable {
     event ListedForSale(
         // Account address of the token owner
         address account,
-        // NFT id
-        uint256 nftId,
-        // Contract address of the NFT
-        address nftContract,
+        // market order id
+        uint256 orderId,
         // Number of tokens for sale
         uint256 noOfTokensForSale,
         // Unit price of each token
         uint256 unitPrice,
-        // Category of the NFT
+        // Category of the item
         OrderSet.Category category,
-        // Date when the NFT was created
+        // Date when the item was created
         uint256 date
     );
 
@@ -95,10 +93,8 @@ contract SteadyMarketplace is Context, Ownable {
     event UnlistedFromSale(
         // Account address of the token owner
         address account,
-        // NFT id
-        uint256 nftId,
-        // Contract address of the NFT
-        address nftContract
+        // market order id
+        uint256 orderId
     );
 
     // Event to indicate a token is sold
@@ -107,10 +103,8 @@ contract SteadyMarketplace is Context, Ownable {
         address from,
         // Account address of the token buyer
         address to,
-        // NFT id
-        uint256 nftId,
-        // Contract address of the NFT
-        address nftContract,
+        // market order id
+        uint256 orderId,
         // Number of tokens sold
         uint256 tokenCount,
         // Purchase amount
@@ -144,7 +138,7 @@ contract SteadyMarketplace is Context, Ownable {
     );
 
     // Event when new vendor collection is created
-    event VendorCollectionCreated(
+    event VendorShopCreated(
         // Account address of the vendor
         address vendorAddress,
         // Collection id of the vendor
@@ -162,7 +156,7 @@ contract SteadyMarketplace is Context, Ownable {
     );
 
     // Event when vendor collection is updated
-    event VendorCollectionUpdated(
+    event VendorShopUpdated(
         // Account address of the vendor
         address vendorAddress,
         // Collection id of the vendor
@@ -195,7 +189,7 @@ contract SteadyMarketplace is Context, Ownable {
 
     // modifier to check if the vendor has created a collection
     modifier hasCreatedCollection() {
-        if (vendors[_msgSender()].vendorCollections.length == 0) {
+        if (vendors[_msgSender()].VendorShops.length == 0) {
             revert SteadyMarketplace__VendorHasNotCreatedCollection();
         }
         _;
@@ -204,10 +198,24 @@ contract SteadyMarketplace is Context, Ownable {
     // modifier to check if the collection is valid
     modifier validCollection(address collectionAddress) {
         if (
-            vendorCollections[collectionAddress].collectionAddress !=
+            VendorShops[collectionAddress].collectionAddress !=
             collectionAddress
         ) {
             revert SteadyMarketplace__CollectionDoesNotExist();
+        }
+        _;
+    }
+
+    // modifier to check if vendorShop name is already exists
+    modifier validVendorShopName(string memory name) {
+        for (uint256 i = 0; i < vendors[_msgSender()].VendorShops.length; i++) {
+            if (
+                keccak256(
+                    bytes(vendors[_msgSender()].VendorShops[i].collectionName)
+                ) == keccak256(bytes(name))
+            ) {
+                revert SteadyMarketplace__CollectionDoesNotExist();
+            }
         }
         _;
     }
@@ -217,9 +225,7 @@ contract SteadyMarketplace is Context, Ownable {
         address collectionAddress,
         uint256 amount
     ) {
-        if (
-            vendorCollections[collectionAddress].collectionTotalSales < amount
-        ) {
+        if (VendorShops[collectionAddress].collectionTotalSales < amount) {
             revert SteadyMarketplace__InsufficientBalance();
         }
         _;
@@ -248,7 +254,7 @@ contract SteadyMarketplace is Context, Ownable {
             _msgSender(),
             name,
             description,
-            new VendorCollection[](0),
+            new VendorShop[](0),
             newDate,
             newDate
         );
@@ -261,23 +267,27 @@ contract SteadyMarketplace is Context, Ownable {
     }
 
     /**
-     * registerVendorCollection - Registers a new vendor collection
-     * @param collectionId - Collection id of the vendor
-     * @param collectionAddress - Collection address of the vendor
-     * @param category - Category of the vendor
+     * registerVendorShop - Registers a new vendor collection
      * @param name - Name of the vendor
      * @param description - Description of the vendor
+     * @param category - Category of the vendor
      */
-    function registerVendorCollection(
-        uint256 collectionId,
-        address collectionAddress,
-        OrderSet.Category category,
+    function registerVendorShop(
         string memory name,
-        string memory description
-    ) external payable onlyVendor {
+        string memory description,
+        OrderSet.Category category
+    ) external payable onlyVendor validVendorShopName(name) {
         uint256 newDate = block.timestamp;
+
+        // create random collection address for vendor
+        address collectionAddress = address(
+            uint160(uint256(keccak256(abi.encodePacked(_msgSender()))))
+        );
+
         // Create a new vendor collection with push
-        VendorCollection memory vc = VendorCollection(
+        uint256 collectionId = vendors[_msgSender()].VendorShops.length;
+
+        VendorShop memory vc = VendorShop(
             collectionId,
             collectionAddress,
             category,
@@ -290,13 +300,13 @@ contract SteadyMarketplace is Context, Ownable {
         );
 
         // Add the vendor collection to the vendor collections mapping
-        vendorCollections[collectionAddress] = vc;
+        VendorShops[collectionAddress] = vc;
 
-        // Add the vendor collection to the vendor's vendorCollections array
-        vendors[_msgSender()].vendorCollections.push(vc);
+        // Add the vendor collection to the vendor's VendorShops array
+        vendors[_msgSender()].VendorShops.push(vc);
 
-        // Emit the VendorCollectionCreated event
-        emit VendorCollectionCreated(
+        // Emit the VendorShopCreated event
+        emit VendorShopCreated(
             _msgSender(),
             collectionId,
             collectionAddress,
@@ -315,9 +325,10 @@ contract SteadyMarketplace is Context, Ownable {
     function updateVendor(
         string memory name,
         string memory description
-    ) external payable onlyVendor {
-        uint256 newDate = block.timestamp;
+    ) external payable onlyVendor validVendorShopName(name) {
+        // check if name is already exists
 
+        uint256 newDate = block.timestamp;
         vendors[_msgSender()].vendorName = name;
         vendors[_msgSender()].vendorDescription = description;
         vendors[_msgSender()].dateUpdated = newDate;
@@ -326,26 +337,25 @@ contract SteadyMarketplace is Context, Ownable {
     }
 
     /**
-     * updateVendorCollection - Updates an existing vendor collection
+     * updateVendorShop - Updates an existing vendor collection
      * @param collectionAddress - Address of the vendor collection
      * @param name - Name of the vendor collection
      * @param description - Description of the vendor collection
      */
 
-    function updateVendorCollection(
+    function updateVendorShop(
         address collectionAddress,
         string memory name,
         string memory description
     ) external payable onlyVendor validCollection(collectionAddress) {
         uint256 newDate = block.timestamp;
-        vendorCollections[collectionAddress].collectionName = name;
-        vendorCollections[collectionAddress]
-            .collectionDescription = description;
-        vendorCollections[collectionAddress].dateUpdated = newDate;
+        VendorShops[collectionAddress].collectionName = name;
+        VendorShops[collectionAddress].collectionDescription = description;
+        VendorShops[collectionAddress].dateUpdated = newDate;
 
-        emit VendorCollectionUpdated(
+        emit VendorShopUpdated(
             _msgSender(),
-            vendorCollections[collectionAddress].collectionId,
+            VendorShops[collectionAddress].collectionId,
             collectionAddress,
             name,
             description,
@@ -354,20 +364,16 @@ contract SteadyMarketplace is Context, Ownable {
     }
 
     /**
-     * createSellOrder - Creates a sell order for the NFT specified by `nftId` and `contractAddress`.
+     * createSellOrder - Creates a sell order for the item specified by `orderId`
      *
-     * @param nftId          - The ID of the NFT to be sold.
-     * @param contractAddress - The address of the NFT's contract.
-     * @param nftType        - The type of the NFT, either 'erc721' or 'erc1155'.
-     * @param unitPrice      - The price of a single NFT in wei.
-     * @param noOfTokensForSale - The number of NFTs being sold.
-     * @param category       - The category of the NFT.
+     * @param orderId        - The ID of the item being sold.
+     * @param unitPrice      - The price of a single item in wei.
+     * @param noOfTokensForSale - The number of itemss being sold.
+     * @param category       - The category of the item.
      */
 
     function createSellOrder(
-        uint256 nftId,
-        address contractAddress,
-        string memory nftType,
+        uint256 orderId,
         uint256 unitPrice,
         uint256 noOfTokensForSale,
         OrderSet.Category category
@@ -376,55 +382,12 @@ contract SteadyMarketplace is Context, Ownable {
             revert SteadyMarketplace__InsufficientBalance();
         }
 
-        // Get the unique identifier for the sell order
-        bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
-
-        // Get the sell order set for the given NFT
-        OrderSet.Set storage nftOrders = orders[orderId];
+        // Get the sell order set for the given item
+        OrderSet.Set storage marketOrder = orders[orderId];
 
         // Require that the token is not already listed for sale by the same owner
-        if (nftOrders.orderExistsForAddress(_msgSender())) {
+        if (marketOrder.orderExistsForAddress(_msgSender())) {
             revert SteadyMarketplace__InsufficientBalance();
-        }
-
-        // Check if the NFT token is an ERC721 or ERC1155 token
-        if (
-            keccak256(abi.encodePacked(nftType)) ==
-            keccak256(abi.encodePacked("erc721"))
-        ) {
-            // Get the ERC721 contract
-            IERC721 tokenContract = IERC721(contractAddress);
-
-            // Require that the caller has approved the contract for token transfer
-            if (!tokenContract.isApprovedForAll(_msgSender(), address(this))) {
-                revert SteadyMarketplace__CallerHasNotApprovedContractForTokenTransfer();
-            }
-
-            // Require that the caller owns the NFT token
-            if (tokenContract.ownerOf(nftId) != _msgSender()) {
-                revert SteadyMarketplace__CallerDoesNotOwnToken();
-            }
-        } else if (
-            keccak256(abi.encodePacked(nftType)) ==
-            keccak256(abi.encodePacked("erc1155"))
-        ) {
-            // Get the ERC1155 contract
-            IERC1155 tokenContract = IERC1155(contractAddress);
-
-            // Require that the caller has approved the contract for token transfer
-            if (!tokenContract.isApprovedForAll(_msgSender(), address(this))) {
-                revert SteadyMarketplace__CallerHasNotApprovedContractForTokenTransfer();
-            }
-
-            // Require that the caller has sufficient balance of the NFT token
-            if (
-                tokenContract.balanceOf(_msgSender(), nftId) < noOfTokensForSale
-            ) {
-                revert SteadyMarketplace__InsufficientBalance();
-            }
-        } else {
-            // Revert if the NFT token is not of type ERC721 or ERC1155
-            revert("Unsupported token type.");
         }
 
         uint256 newDate = block.timestamp;
@@ -437,13 +400,12 @@ contract SteadyMarketplace is Context, Ownable {
             OrderSet.Category(category),
             newDate
         );
-        nftOrders.insert(o);
+        marketOrder.insert(o);
 
-        // Emit the 'ListedForSale' event to signal that a new NFT has been listed for sale
+        // Emit the 'ListedForSale' event to signal that a new item has been listed for sale
         emit ListedForSale(
             _msgSender(),
-            nftId,
-            contractAddress,
+            orderId,
             noOfTokensForSale,
             unitPrice,
             category,
@@ -452,63 +414,53 @@ contract SteadyMarketplace is Context, Ownable {
     }
 
     /**
-     * cancelSellOrder - Cancels the sell order created by the caller for a specific NFT token.
+     * cancelSellOrder - Cancels the sell order created by the caller for a specific item token.
      *
-     * @param nftId ID of the NFT token to cancel the sell order for.
-     * @param contractAddress Address of the NFT contract for the NFT token.
+     * @param orderId - The ID of the item to be unlisted.
      */
     function cancelSellOrder(
-        uint256 nftId,
-        address contractAddress
+        uint256 orderId
     ) external onlyVendor hasCreatedCollection {
-        // Get the unique identifier for the order set of the given NFT token.
-        bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
-
-        // Get the sell order set of the given NFT token.
-        OrderSet.Set storage nftOrders = orders[orderId];
+        // Get the sell order set of the given item token.
+        OrderSet.Set storage itemOrders = orders[orderId];
 
         // Ensure that the sell order exists for the caller.
-        if (!nftOrders.orderExistsForAddress(_msgSender())) {
+        if (!itemOrders.orderExistsForAddress(_msgSender())) {
             revert SteadyMarketplace__TokenIsNotListedForSaleByTheOwner();
         }
 
         // Remove the sell order from the set.
-        nftOrders.remove(nftOrders.orderByAddress(_msgSender()));
+        itemOrders.remove(itemOrders.orderByAddress(_msgSender()));
 
         // Emit an event indicating that the sell order has been unlisted.
-        emit UnlistedFromSale(_msgSender(), nftId, contractAddress);
+        emit UnlistedFromSale(_msgSender(), orderId);
     }
 
     /**
-     * createBuyOrder - Create a buy order for an NFT token.
+     * createBuyOrder - Create a buy order for an item token.
      *
-     * @param nftId - unique identifier of the NFT token.
-     * @param contractAddress - address of the NFT contract that holds the token.
-     * @param nftType - type of the NFT token, either 'erc721' or 'erc1155'.
+     * @param orderId - The ID of the item being sold.
      * @param noOfTokensToBuy - number of tokens the buyer wants to purchase.
      * @param tokenOwner - address of the seller who is selling the token.
      */
 
     function createBuyOrder(
-        uint256 nftId,
-        address contractAddress,
-        string memory nftType, // 'erc721' or 'erc1155'
+        uint256 orderId,
         uint256 noOfTokensToBuy,
         address payable tokenOwner
     ) external payable {
-        // Get the unique identifier for the order set of the given NFT token.
-        bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
+        // Get the unique identifier for the order set of the given item token.
 
-        // Get the sell order set of the given NFT token.
-        OrderSet.Set storage nftOrders = orders[orderId];
+        // Get the sell order set of the given item token.
+        OrderSet.Set storage itemOrders = orders[orderId];
 
-        // Check if the token owner has a sell order for the given NFT.
-        if (!nftOrders.orderExistsForAddress(tokenOwner)) {
+        // Check if the token owner has a sell order for the given item.
+        if (!itemOrders.orderExistsForAddress(tokenOwner)) {
             revert SteadyMarketplace__TokenIsNotListedForSaleByTheOwner();
         }
 
-        // Get the sell order for the given NFT by the token owner.
-        OrderSet.SellOrder storage sellOrder = nftOrders.orderByAddress(
+        // Get the sell order for the given item by the token owner.
+        OrderSet.SellOrder storage sellOrder = itemOrders.orderByAddress(
             tokenOwner
         );
 
@@ -523,46 +475,6 @@ contract SteadyMarketplace is Context, Ownable {
             revert SteadyMarketplace__LessETHProvidedForThePurchase();
         }
 
-        if (
-            keccak256(abi.encodePacked(nftType)) ==
-            keccak256(abi.encodePacked("erc721"))
-        ) {
-            // Get the ERC721 contract
-            IERC721 tokenContract = IERC721(contractAddress);
-
-            // Require that the caller has approved the contract for token transfer
-            if (!tokenContract.isApprovedForAll(tokenOwner, address(this))) {
-                revert SteadyMarketplace__SellerHasRemovedContractsApprovalForTokenTransfer();
-            }
-
-            // Transfer ownership of the NFT from the token owner to the buyer.
-            tokenContract.safeTransferFrom(tokenOwner, _msgSender(), nftId);
-        } else if (
-            keccak256(abi.encodePacked(nftType)) ==
-            keccak256(abi.encodePacked("erc1155"))
-        ) {
-            // Get the IERC1155 contract
-            IERC1155 tokenContract = IERC1155(contractAddress);
-
-            // Require that the caller has approved the contract for token transfer
-            require(
-                tokenContract.isApprovedForAll(tokenOwner, address(this)),
-                "Seller has removed contracts approval for token transfer."
-            );
-
-            // Transfer the specified number of tokens from the token owner to the buyer.
-            tokenContract.safeTransferFrom(
-                tokenOwner,
-                _msgSender(),
-                nftId,
-                noOfTokensToBuy,
-                ""
-            );
-        } else {
-            // Revert if the NFT type is unsupported.
-            revert("Unsupported token type.");
-        }
-
         // Send the specified value of Ether from the buyer to the token owner
         bool sent = tokenOwner.send(msg.value);
         if (!sent) {
@@ -571,11 +483,11 @@ contract SteadyMarketplace is Context, Ownable {
 
         /**
          * Check if the quantity of tokens being sold in the sell order is equal to the number of tokens the buyer wants to purchase.
-         * If true, it removes the sell order from the list of NFT orders.
+         * If true, it removes the sell order from the list of item orders.
          * Otherwise, update the sell order by subtracting the number of tokens bought from the total quantity being sold.
          */
         if (sellOrder.quantity == noOfTokensToBuy) {
-            nftOrders.remove(sellOrder);
+            itemOrders.remove(sellOrder);
         } else {
             sellOrder.quantity -= noOfTokensToBuy;
         }
@@ -584,8 +496,7 @@ contract SteadyMarketplace is Context, Ownable {
         emit TokensSold(
             tokenOwner,
             _msgSender(),
-            nftId,
-            contractAddress,
+            orderId,
             noOfTokensToBuy,
             msg.value
         );
@@ -593,77 +504,63 @@ contract SteadyMarketplace is Context, Ownable {
 
     /**
      * getOrders: This function retrieves the sell orders for the given token
-     * @param nftId unique identifier of the token
-     * @param contractAddress address of the contract that holds the token
+     * @param orderId  - The ID of of the item
      * @return An array of sell orders for the given token
      */
     function getOrders(
-        uint256 nftId,
-        address contractAddress
+        uint256 orderId
     ) external view returns (OrderSet.SellOrder[] memory) {
-        bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
         return orders[orderId].allOrders();
     }
 
     /**
      * getOrderByAddress: Get the SellOrder of a token for a given owner
-     * @param nftId unique identifier of the token
-     * @param contractAddress address of the contract that holds the token
+     * @param orderId the ID of the item
      * @param listedBy address of the owner
      * @return Sell order of a token for the given owner
      */
     function getOrderByAddress(
-        uint256 nftId,
-        address contractAddress,
+        uint256 orderId,
         address listedBy
     ) public view returns (OrderSet.SellOrder memory) {
-        // Calculate the unique identifier for the order
-        bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
+        // Get the SellOrderSet for the item
+        OrderSet.Set storage itemOrders = orders[orderId];
 
-        // Get the SellOrderSet for the NFT
-        OrderSet.Set storage nftOrders = orders[orderId];
-
-        // Check if a SellOrder exists for the given owner
-        if (nftOrders.orderExistsForAddress(listedBy)) {
-            // Return the SellOrder for the given owner
-            return nftOrders.orderByAddress(listedBy);
+        // Check if a SellOrder not exists for the given owner
+        if (!itemOrders.orderExistsForAddress(listedBy)) {
+            // If true, return an empty SellOrder
+            return
+                OrderSet.SellOrder(address(0), 0, 0, OrderSet.Category(0), 0);
         }
-
-        // Else, return empty SellOrder
-        return OrderSet.SellOrder(address(0), 0, 0, OrderSet.Category(0), 0);
+        // Else  Return the SellOrder for the given owner
+        return itemOrders.orderByAddress(listedBy);
     }
 
     /**
      * getOrdersByCategory: This function retrieves the sell orders for the given token and category
-     * @param nftId unique identifier of the token
-     * @param contractAddress address of the contract that holds the token
+     * @param orderId the ID of the item
      * @param category category of the token
      * @return An array of sell orders for the given token and category
      */
     function getOrdersByCategory(
-        uint256 nftId,
-        address contractAddress,
+        uint256 orderId,
         OrderSet.Category category
     ) external view returns (OrderSet.SellOrder[] memory) {
-        bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
         return orders[orderId].allOrdersByCategory(category);
     }
 
     /**
      * getOrdersByCategoryAndAddress: This function retrieves the sell orders for the given token, category and owner
-     * @param nftId unique identifier of the token
-     * @param contractAddress address of the contract that holds the token
+     * @param orderId the ID of the item
      * @param category category of the token
      * @param listedBy address of the owner
      * @return An array of sell orders for the given token, category and owner
      */
     function getOrdersByCategoryAndAddress(
-        uint256 nftId,
-        address contractAddress,
+        uint256 orderId,
         OrderSet.Category category,
         address listedBy
     ) external view returns (OrderSet.SellOrder[] memory) {
-        bytes32 orderId = _getOrdersMapId(nftId, contractAddress);
         return orders[orderId].ordersByAddressAndCategory(listedBy, category);
     }
 
@@ -681,7 +578,7 @@ contract SteadyMarketplace is Context, Ownable {
         validCollection(collectionAddress)
         sufficientVendorBalance(collectionAddress, amount)
     {
-        vendorCollections[collectionAddress].collectionTotalSales -= amount;
+        VendorShops[collectionAddress].collectionTotalSales -= amount;
         (bool vs, ) = _msgSender().call{value: amount}("");
         if (!vs) {
             revert SteadyMarketplace__FailedToSendEtherToTheVendor();
@@ -700,15 +597,5 @@ contract SteadyMarketplace is Context, Ownable {
         if (!os) {
             revert SteadyMarketplace__FailedToSendEtherToTheOwner();
         }
-    }
-
-    // _getOrdersMapId function generates the unique identifier for a given NFT id and contract address
-    // The identifier is used as the key to store the corresponding SellOrderSet in the `orders` mapping
-    // This helps to retrieve and manage the sell orders for a specific NFT efficiently.
-    function _getOrdersMapId(
-        uint256 nftId,
-        address contractAddress
-    ) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(contractAddress, nftId));
     }
 }
