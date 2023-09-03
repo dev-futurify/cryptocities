@@ -21,8 +21,8 @@ import {OrderSet} from "./libraries/OrderSet.sol";
 contract SteadyMarketplace is Context, Ownable {
     error SteadyMarketplace__OnlyVendor();
     error SteadyMarketplace__VendorFeeNotPaid();
-    error SteadyMarketplace__VendorHasNotCreatedCollection();
-    error SteadyMarketplace__CollectionDoesNotExist();
+    error SteadyMarketplace__VendorHasNotCreatedStore();
+    error SteadyMarketplace__StoreDoesNotExist();
     error SteadyMarketplace__InsufficientBalance();
     error SteadyMarketplace__CallerHasNotApprovedContractForTokenTransfer();
     error SteadyMarketplace__CallerDoesNotOwnToken();
@@ -50,28 +50,28 @@ contract SteadyMarketplace is Context, Ownable {
         address vendorAddress;
         string vendorName;
         string vendorDescription;
-        VendorShop[] VendorShops;
+        string vendorBusinessRegistrationNumber;
+        VendorStore[] VendorStores;
         uint256 dateCreated;
         uint256 dateUpdated;
     }
-    // VendorShop data structure to store vendor shop details
-    struct VendorShop {
-        uint256 collectionId;
-        address collectionAddress;
+    // VendorStore data structure to store vendor store details
+    struct VendorStore {
+        uint256 storeId;
+        address storeAddress;
+        string storeName;
+        string storeDescription;
         OrderSet.Category category;
-        string collectionName;
-        string collectionDescription;
-        uint256 collectionTotalSales;
-        uint256 collectionTotalSalesByCategory;
+        uint256 storeTotalSales;
         uint256 dateCreated;
         uint256 dateUpdated;
     }
 
     // Mapping to store vendor details
-    mapping(address => VendorShop) public VendorShops;
+    mapping(address => Vendor) public allVendors;
 
-    // Mapping to store vendor details
-    mapping(address => Vendor) public vendors;
+    // Mapping to store vendor stores details
+    mapping(address => VendorStore) public allVendorStores;
 
     // Event to indicate a token is listed for sale
     event ListedForSale(
@@ -137,14 +137,14 @@ contract SteadyMarketplace is Context, Ownable {
         uint256 dateUpdated
     );
 
-    // Event when new vendor collection is created
-    event VendorShopCreated(
+    // Event when new vendor store is created
+    event VendorStoreCreated(
         // Account address of the vendor
         address vendorAddress,
-        // Collection id of the vendor
-        uint256 collectionId,
-        // Collection address of the vendor
-        address collectionAddress,
+        // store id of the vendor
+        uint256 storeId,
+        // store address of the vendor
+        address storeAddress,
         // Name of the vendor
         string vendorName,
         // Description of the vendor
@@ -155,14 +155,14 @@ contract SteadyMarketplace is Context, Ownable {
         uint256 dateUpdated
     );
 
-    // Event when vendor collection is updated
-    event VendorShopUpdated(
+    // Event when vendor store is updated
+    event VendorStoreUpdated(
         // Account address of the vendor
         address vendorAddress,
-        // Collection id of the vendor
-        uint256 collectionId,
-        // Collection address of the vendor
-        address collectionAddress,
+        // store id of the vendor
+        uint256 storeId,
+        // store address of the vendor
+        address storeAddress,
         // Name of the vendor
         string vendorName,
         // Description of the vendor
@@ -173,7 +173,7 @@ contract SteadyMarketplace is Context, Ownable {
 
     // modifier to check if the caller is a vendor
     modifier onlyVendor() {
-        if (vendors[_msgSender()].vendorAddress != _msgSender()) {
+        if (allVendors[_msgSender()].vendorAddress != _msgSender()) {
             revert SteadyMarketplace__OnlyVendor();
         }
         _;
@@ -181,51 +181,49 @@ contract SteadyMarketplace is Context, Ownable {
 
     // modifier to check if the user paid the vendor fee
     modifier paidVendorFee() {
-        if (msg.value != VENDOR_FEE) {
+        if (msg.value < VENDOR_FEE) {
             revert SteadyMarketplace__VendorFeeNotPaid();
         }
         _;
     }
 
-    // modifier to check if the vendor has created a collection
-    modifier hasCreatedCollection() {
-        if (vendors[_msgSender()].VendorShops.length == 0) {
-            revert SteadyMarketplace__VendorHasNotCreatedCollection();
+    // modifier to check if the vendor has created a store
+    modifier hasCreatedstore() {
+        if (allVendors[_msgSender()].VendorStores.length == 0) {
+            revert SteadyMarketplace__VendorHasNotCreatedStore();
         }
         _;
     }
 
-    // modifier to check if the collection is valid
-    modifier validCollection(address collectionAddress) {
-        if (
-            VendorShops[collectionAddress].collectionAddress !=
-            collectionAddress
+    // modifier to check if the store is valid
+    modifier validstore(address storeAddress) {
+        if (allVendorStores[storeAddress].storeAddress != storeAddress) {
+            revert SteadyMarketplace__StoreDoesNotExist();
+        }
+        _;
+    }
+
+    // modifier to check if vendorStore name is already exists
+    modifier validVendorStoreName(string memory name) {
+        for (
+            uint256 i = 0;
+            i < allVendors[_msgSender()].VendorStores.length;
+            i++
         ) {
-            revert SteadyMarketplace__CollectionDoesNotExist();
-        }
-        _;
-    }
-
-    // modifier to check if vendorShop name is already exists
-    modifier validVendorShopName(string memory name) {
-        for (uint256 i = 0; i < vendors[_msgSender()].VendorShops.length; i++) {
             if (
                 keccak256(
-                    bytes(vendors[_msgSender()].VendorShops[i].collectionName)
+                    bytes(allVendors[_msgSender()].VendorStores[i].storeName)
                 ) == keccak256(bytes(name))
             ) {
-                revert SteadyMarketplace__CollectionDoesNotExist();
+                revert SteadyMarketplace__StoreDoesNotExist();
             }
         }
         _;
     }
 
     // modifier to check if the vendor has sufficient balance
-    modifier sufficientVendorBalance(
-        address collectionAddress,
-        uint256 amount
-    ) {
-        if (VendorShops[collectionAddress].collectionTotalSales < amount) {
+    modifier sufficientVendorBalance(address storeAddress, uint256 amount) {
+        if (allVendorStores[storeAddress].storeTotalSales < amount) {
             revert SteadyMarketplace__InsufficientBalance();
         }
         _;
@@ -243,10 +241,12 @@ contract SteadyMarketplace is Context, Ownable {
      * registerVendor - Registers a new vendor
      * @param name - Name of the vendor
      * @param description - Description of the vendor
+     * @param businessRegistrationNumber - Business registration number of the vendor
      */
     function registerVendor(
         string memory name,
-        string memory description
+        string memory description,
+        string memory businessRegistrationNumber
     ) external payable paidVendorFee {
         uint256 newDate = block.timestamp;
         // Create a new vendor with push
@@ -254,62 +254,62 @@ contract SteadyMarketplace is Context, Ownable {
             _msgSender(),
             name,
             description,
-            new VendorShop[](0),
+            businessRegistrationNumber,
+            new VendorStore[](0),
             newDate,
             newDate
         );
 
         // Add the vendor to the vendors mapping
-        vendors[_msgSender()] = v;
+        allVendors[_msgSender()] = v;
 
         // Emit the VendorCreated event
         emit VendorCreated(_msgSender(), name, description, newDate, newDate);
     }
 
     /**
-     * registerVendorShop - Registers a new vendor collection
+     * registerVendorStore - Registers a new vendor store
      * @param name - Name of the vendor
      * @param description - Description of the vendor
      * @param category - Category of the vendor
      */
-    function registerVendorShop(
+    function registerVendorStore(
         string memory name,
         string memory description,
         OrderSet.Category category
-    ) external payable onlyVendor validVendorShopName(name) {
+    ) external payable onlyVendor validVendorStoreName(name) {
         uint256 newDate = block.timestamp;
 
-        // create random collection address for vendor
-        address collectionAddress = address(
+        // create random store address for vendor
+        address storeAddress = address(
             uint160(uint256(keccak256(abi.encodePacked(_msgSender()))))
         );
 
-        // Create a new vendor collection with push
-        uint256 collectionId = vendors[_msgSender()].VendorShops.length;
+        // Create a new vendor store with push
+        uint256 storeId = allVendors[_msgSender()].VendorStores.length;
 
-        VendorShop memory vc = VendorShop(
-            collectionId,
-            collectionAddress,
-            category,
+        VendorStore memory vc = VendorStore(
+            storeId,
+            storeAddress,
             name,
             description,
-            0,
+            category,
             0,
             newDate,
             newDate
         );
 
-        // Add the vendor collection to the vendor collections mapping
-        VendorShops[collectionAddress] = vc;
+        // Add the vendor store to the vendor stores mapping
+        allVendorStores[storeAddress] = vc;
 
-        // Add the vendor collection to the vendor's VendorShops array
-        vendors[_msgSender()].VendorShops.push(vc);
+        // Add the vendor store to the vendor's VendorStores array
+        allVendors[_msgSender()].VendorStores.push(vc);
 
-        // Emit the VendorShopCreated event
-        emit VendorShopCreated(
+        // Emit the VendorStoreCreated event
+        emit VendorStoreCreated(
             _msgSender(),
-            collectionId,
-            collectionAddress,
+            storeId,
+            storeAddress,
             name,
             description,
             newDate,
@@ -321,42 +321,44 @@ contract SteadyMarketplace is Context, Ownable {
      * updateVendor - Updates an existing vendor
      * @param name - Name of the vendor
      * @param description - Description of the vendor
+     * @param businessRegistrationNumber - Business registration number of the vendor
      */
     function updateVendor(
         string memory name,
-        string memory description
-    ) external payable onlyVendor validVendorShopName(name) {
-        // check if name is already exists
-
+        string memory description,
+        string memory businessRegistrationNumber
+    ) external payable onlyVendor validVendorStoreName(name) {
         uint256 newDate = block.timestamp;
-        vendors[_msgSender()].vendorName = name;
-        vendors[_msgSender()].vendorDescription = description;
-        vendors[_msgSender()].dateUpdated = newDate;
+        allVendors[_msgSender()].vendorName = name;
+        allVendors[_msgSender()].vendorDescription = description;
+        allVendors[_msgSender()]
+            .vendorBusinessRegistrationNumber = businessRegistrationNumber;
+        allVendors[_msgSender()].dateUpdated = newDate;
 
         emit VendorUpdated(_msgSender(), name, description, newDate);
     }
 
     /**
-     * updateVendorShop - Updates an existing vendor collection
-     * @param collectionAddress - Address of the vendor collection
-     * @param name - Name of the vendor collection
-     * @param description - Description of the vendor collection
+     * updateVendorStore - Updates an existing vendor store
+     * @param storeAddress - Address of the vendor store
+     * @param name - Name of the vendor store
+     * @param description - Description of the vendor store
      */
 
-    function updateVendorShop(
-        address collectionAddress,
+    function updateVendorStore(
+        address storeAddress,
         string memory name,
         string memory description
-    ) external payable onlyVendor validCollection(collectionAddress) {
+    ) external payable onlyVendor validstore(storeAddress) {
         uint256 newDate = block.timestamp;
-        VendorShops[collectionAddress].collectionName = name;
-        VendorShops[collectionAddress].collectionDescription = description;
-        VendorShops[collectionAddress].dateUpdated = newDate;
+        allVendorStores[storeAddress].storeName = name;
+        allVendorStores[storeAddress].storeDescription = description;
+        allVendorStores[storeAddress].dateUpdated = newDate;
 
-        emit VendorShopUpdated(
+        emit VendorStoreUpdated(
             _msgSender(),
-            VendorShops[collectionAddress].collectionId,
-            collectionAddress,
+            allVendorStores[storeAddress].storeId,
+            storeAddress,
             name,
             description,
             newDate
@@ -377,7 +379,7 @@ contract SteadyMarketplace is Context, Ownable {
         uint256 unitPrice,
         uint256 noOfTokensForSale,
         OrderSet.Category category
-    ) external onlyVendor hasCreatedCollection {
+    ) external onlyVendor hasCreatedstore {
         if (unitPrice <= 0) {
             revert SteadyMarketplace__InsufficientBalance();
         }
@@ -420,7 +422,7 @@ contract SteadyMarketplace is Context, Ownable {
      */
     function cancelSellOrder(
         uint256 orderId
-    ) external onlyVendor hasCreatedCollection {
+    ) external onlyVendor hasCreatedstore {
         // Get the sell order set of the given item token.
         OrderSet.Set storage itemOrders = orders[orderId];
 
@@ -565,20 +567,22 @@ contract SteadyMarketplace is Context, Ownable {
     }
 
     /**
-     * vendorWithdrawal function allows the vendor to withdraw their funds from their gains in the their associated collections
-     * @param collectionAddress address of the collection that holds the token
+     * vendorWithdrawal function allows the vendor to withdraw their funds from their gains in the their associated stores
+     * @param storeAddress address of the store that holds the token
      * @param amount amount to be withdrawn
      */
     function vendorWithdrawal(
-        address collectionAddress,
+        address storeAddress,
         uint256 amount
     )
         external
         onlyVendor
-        validCollection(collectionAddress)
-        sufficientVendorBalance(collectionAddress, amount)
+        validstore(storeAddress)
+        sufficientVendorBalance(storeAddress, amount)
     {
-        VendorShops[collectionAddress].collectionTotalSales -= amount;
+        allVendors[storeAddress]
+            .VendorStores[allVendorStores[storeAddress].storeId]
+            .storeTotalSales -= amount;
         (bool vs, ) = _msgSender().call{value: amount}("");
         if (!vs) {
             revert SteadyMarketplace__FailedToSendEtherToTheVendor();
