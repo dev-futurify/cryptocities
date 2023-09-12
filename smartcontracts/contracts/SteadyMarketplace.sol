@@ -18,10 +18,15 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {OrderSet} from "./libraries/OrderSet.sol";
 
+interface ISteadyFormula {
+    function _totalSalesByVendor() external view returns (uint256);
+}
+
 contract SteadyMarketplace is Context, Ownable {
     error SteadyMarketplace__OnlyVendor();
     error SteadyMarketplace__VendorFeeNotPaid();
     error SteadyMarketplace__VendorHasNotCreatedStore();
+    error SteadyMarketplace__StoreNameAlreadyExist();
     error SteadyMarketplace__StoreDoesNotExist();
     error SteadyMarketplace__InsufficientBalance();
     error SteadyMarketplace__CallerHasNotApprovedContractForTokenTransfer();
@@ -36,33 +41,43 @@ contract SteadyMarketplace is Context, Ownable {
 
     // Use SafeMath library for uint256 arithmetic operations
     using SafeMath for uint256;
+
     // Use OrderSet for OrderSet.Set operations
     using OrderSet for OrderSet.Set;
 
     // charge a fee of 100 Steady Coin to become a vendor
     uint256 public constant VENDOR_FEE = 100 ether;
 
+    // SteadyFormula contract address
+    ISteadyFormula private i_formula;
+
     // Mapping to store sell orders for different orders
     mapping(uint256 => OrderSet.Set) private orders;
 
+    // counter to keep track of the number of vendors
+    uint256 public vendorCounter;
+
+    // counter to keep track of the number of stores and it will be associated with the vendor
+    uint256 public storeCounter;
+
     // Vendor data structure to store vendor details
     struct Vendor {
+        uint256 vendorId;
         address vendorAddress;
         string vendorName;
         string vendorDescription;
         string vendorBusinessRegistrationNumber;
-        VendorStore[] VendorStores;
         uint256 dateCreated;
         uint256 dateUpdated;
     }
     // VendorStore data structure to store vendor store details
     struct VendorStore {
         uint256 storeId;
+        address vendorAddress;
         address storeAddress;
         string storeName;
         string storeDescription;
         OrderSet.Category category;
-        uint256 storeTotalSales;
         uint256 dateCreated;
         uint256 dateUpdated;
     }
@@ -139,16 +154,18 @@ contract SteadyMarketplace is Context, Ownable {
 
     // Event when new vendor store is created
     event VendorStoreCreated(
-        // Account address of the vendor
-        address vendorAddress,
         // store id of the vendor
         uint256 storeId,
+        // Account address of the vendor
+        address vendorAddress,
         // store address of the vendor
         address storeAddress,
         // Name of the vendor
         string vendorName,
         // Description of the vendor
         string vendorDescription,
+        // Category of the item
+        OrderSet.Category category,
         // Date when the vendor was created
         uint256 dateCreated,
         // Date when the vendor was updated
@@ -188,15 +205,15 @@ contract SteadyMarketplace is Context, Ownable {
     }
 
     // modifier to check if the vendor has created a store
-    modifier hasCreatedstore() {
-        if (allVendors[_msgSender()].VendorStores.length == 0) {
+    modifier hasCreatedStore() {
+        if (allVendorStores[_msgSender()].storeAddress == address(0)) {
             revert SteadyMarketplace__VendorHasNotCreatedStore();
         }
         _;
     }
 
     // modifier to check if the store is valid
-    modifier validstore(address storeAddress) {
+    modifier validStore(address storeAddress) {
         if (allVendorStores[storeAddress].storeAddress != storeAddress) {
             revert SteadyMarketplace__StoreDoesNotExist();
         }
@@ -205,17 +222,12 @@ contract SteadyMarketplace is Context, Ownable {
 
     // modifier to check if vendorStore name is already exists
     modifier validVendorStoreName(string memory name) {
-        for (
-            uint256 i = 0;
-            i < allVendors[_msgSender()].VendorStores.length;
-            i++
-        ) {
+        for (uint256 i = 0; i < allVendorStores[_msgSender()].storeId; i++) {
             if (
-                keccak256(
-                    bytes(allVendors[_msgSender()].VendorStores[i].storeName)
-                ) == keccak256(bytes(name))
+                keccak256(bytes(allVendorStores[_msgSender()].storeName)) ==
+                keccak256(bytes(name))
             ) {
-                revert SteadyMarketplace__StoreDoesNotExist();
+                revert SteadyMarketplace__StoreNameAlreadyExist();
             }
         }
         _;
@@ -223,7 +235,7 @@ contract SteadyMarketplace is Context, Ownable {
 
     // modifier to check if the vendor has sufficient balance
     modifier sufficientVendorBalance(address storeAddress, uint256 amount) {
-        if (allVendorStores[storeAddress].storeTotalSales < amount) {
+        if (i_formula._totalSalesByVendor() < amount) {
             revert SteadyMarketplace__InsufficientBalance();
         }
         _;
@@ -235,6 +247,10 @@ contract SteadyMarketplace is Context, Ownable {
             revert SteadyMarketplace__InsufficientBalance();
         }
         _;
+    }
+
+    constructor(address formulaAddress) {
+        i_formula = ISteadyFormula(formulaAddress);
     }
 
     /**
@@ -251,17 +267,20 @@ contract SteadyMarketplace is Context, Ownable {
         uint256 newDate = block.timestamp;
         // Create a new vendor with push
         Vendor memory v = Vendor(
+            vendorCounter,
             _msgSender(),
             name,
             description,
             businessRegistrationNumber,
-            new VendorStore[](0),
             newDate,
             newDate
         );
 
         // Add the vendor to the vendors mapping
         allVendors[_msgSender()] = v;
+
+        // Increment the vendor counter
+        vendorCounter++;
 
         // Emit the VendorCreated event
         emit VendorCreated(_msgSender(), name, description, newDate, newDate);
@@ -277,7 +296,11 @@ contract SteadyMarketplace is Context, Ownable {
         string memory name,
         string memory description,
         OrderSet.Category category
-    ) external payable onlyVendor validVendorStoreName(name) {
+    )
+        external
+        payable
+        onlyVendor // validVendorStoreName(name)
+    {
         uint256 newDate = block.timestamp;
 
         // create random store address for vendor
@@ -286,15 +309,13 @@ contract SteadyMarketplace is Context, Ownable {
         );
 
         // Create a new vendor store with push
-        uint256 storeId = allVendors[_msgSender()].VendorStores.length;
-
         VendorStore memory vc = VendorStore(
-            storeId,
+            storeCounter,
+            _msgSender(),
             storeAddress,
             name,
             description,
             category,
-            0,
             newDate,
             newDate
         );
@@ -303,15 +324,16 @@ contract SteadyMarketplace is Context, Ownable {
         allVendorStores[storeAddress] = vc;
 
         // Add the vendor store to the vendor's VendorStores array
-        allVendors[_msgSender()].VendorStores.push(vc);
+        // allVendors[_msgSender()].VendorStores.push(vc);
 
         // Emit the VendorStoreCreated event
         emit VendorStoreCreated(
+            storeCounter,
             _msgSender(),
-            storeId,
             storeAddress,
             name,
             description,
+            category,
             newDate,
             newDate
         );
@@ -327,7 +349,11 @@ contract SteadyMarketplace is Context, Ownable {
         string memory name,
         string memory description,
         string memory businessRegistrationNumber
-    ) external payable onlyVendor validVendorStoreName(name) {
+    )
+        external
+        payable
+        onlyVendor // validVendorStoreName(name)
+    {
         uint256 newDate = block.timestamp;
         allVendors[_msgSender()].vendorName = name;
         allVendors[_msgSender()].vendorDescription = description;
@@ -349,7 +375,7 @@ contract SteadyMarketplace is Context, Ownable {
         address storeAddress,
         string memory name,
         string memory description
-    ) external payable onlyVendor validstore(storeAddress) {
+    ) external payable onlyVendor validStore(storeAddress) {
         uint256 newDate = block.timestamp;
         allVendorStores[storeAddress].storeName = name;
         allVendorStores[storeAddress].storeDescription = description;
@@ -379,7 +405,10 @@ contract SteadyMarketplace is Context, Ownable {
         uint256 unitPrice,
         uint256 noOfTokensForSale,
         OrderSet.Category category
-    ) external onlyVendor hasCreatedstore {
+    )
+        external
+        onlyVendor // hasCreatedStore
+    {
         if (unitPrice <= 0) {
             revert SteadyMarketplace__InsufficientBalance();
         }
@@ -422,7 +451,10 @@ contract SteadyMarketplace is Context, Ownable {
      */
     function cancelSellOrder(
         uint256 orderId
-    ) external onlyVendor hasCreatedstore {
+    )
+        external
+        onlyVendor // hasCreatedStore
+    {
         // Get the sell order set of the given item token.
         OrderSet.Set storage itemOrders = orders[orderId];
 
@@ -577,12 +609,9 @@ contract SteadyMarketplace is Context, Ownable {
     )
         external
         onlyVendor
-        validstore(storeAddress)
+        validStore(storeAddress)
         sufficientVendorBalance(storeAddress, amount)
     {
-        allVendors[storeAddress]
-            .VendorStores[allVendorStores[storeAddress].storeId]
-            .storeTotalSales -= amount;
         (bool vs, ) = _msgSender().call{value: amount}("");
         if (!vs) {
             revert SteadyMarketplace__FailedToSendEtherToTheVendor();
@@ -601,5 +630,12 @@ contract SteadyMarketplace is Context, Ownable {
         if (!os) {
             revert SteadyMarketplace__FailedToSendEtherToTheOwner();
         }
+    }
+
+    /**
+     * Change the contract address of the SteadyFormula contract
+     */
+    function changeFormulaAddress(address newAddress) external onlyOwner {
+        i_formula = ISteadyFormula(newAddress);
     }
 }

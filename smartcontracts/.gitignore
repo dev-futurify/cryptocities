@@ -9,6 +9,10 @@ typechain-types
 cache
 artifacts
 
+# forge files
+cache_forge
+out
+
 
 node_modules
 .env.development
@@ -21,4 +25,3 @@ typechain-types
 # Hardhat files
 cache
 artifacts
-

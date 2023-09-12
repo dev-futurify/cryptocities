@@ -2,9 +2,9 @@
 
 pragma solidity 0.8.19;
 
-import {SteadyCoin} from "../../contracts/SteadyCoin.sol";
 import {Test, console} from "forge-std/Test.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
+import {SteadyCoin} from "../../contracts/SteadyCoin.sol";
 
 contract SteadyCoinTest is StdCheats, Test {
     SteadyCoin stc;

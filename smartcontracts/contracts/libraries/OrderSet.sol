@@ -40,6 +40,7 @@ library OrderSet {
     }
 
     // SellOrder structure representing a sell order, containing the address of the seller, the quantity of tokens being sold, and the unit price of the tokens.
+    // TODO: connect vendor and vendor store in SellOrder
     struct SellOrder {
         address listedBy; // Address of the seller
         uint256 quantity; // Quantity of tokens being sold

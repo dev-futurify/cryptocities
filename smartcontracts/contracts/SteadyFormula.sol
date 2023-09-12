@@ -88,6 +88,44 @@ contract SteadyFormula {
     }
 
     /**
+     * Get the overall sales of tokens being sold in the set
+     *
+     * @param self Set The set of sell orders
+     * @return uint256 The overall sales of tokens being sold in the set
+     */
+    function _totalSales(
+        OrderSet.Set storage self
+    ) internal view returns (uint256) {
+        uint256 totalCost = 0;
+        for (uint256 i = 0; i < self.keyList.length; i++) {
+            totalCost += self.keyList[i].quantity * self.keyList[i].unitPrice;
+        }
+        return totalCost;
+    }
+
+    /**
+     * Get the total sales of tokens being sold in the set by a specific vendor
+     *
+     * @param self Set The set of sell orders
+     * @param vendor address The vendor to filter by
+     * @return uint256 The total sales of tokens being sold in the set by a specific vendor
+     */
+    function _totalSalesByVendor(
+        OrderSet.Set storage self,
+        address vendor
+    ) internal view returns (uint256) {
+        uint256 totalCost = 0;
+        for (uint256 i = 0; i < self.keyList.length; i++) {
+            if (self.keyList[i].listedBy == vendor) {
+                totalCost +=
+                    self.keyList[i].quantity *
+                    self.keyList[i].unitPrice;
+            }
+        }
+        return totalCost;
+    }
+
+    /**
      * Get the total sales of tokens being sold in the set by a specific date
      *
      * @param self Set The set of sell orders
