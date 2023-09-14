@@ -7,8 +7,17 @@ test@contract:
 test@forge:
 	forge test
 
+test@forge-verbose:
+	forge test -vv
+
+test@forge-full-verbose:
+	forge test -vvvv
+
 test@contract-gas:
 	REPORT_GAS=true npx hardhat test
+
+test@forge-gas:
+	forge test --gas-report
 
 local@network:
 	npx hardhat node
