@@ -56,10 +56,7 @@ library OrderSet {
     }
 
     // Function to insert a SellOrder into the Set.
-    function insert(
-        Set storage self,
-        SellOrder memory key
-    ) internal validCategory(Category(key.category)) {
+    function insert(Set storage self, SellOrder memory key) internal validCategory(Category(key.category)) {
         // Check if the seller address is address(0), which is not allowed.
         if (key.listedBy == address(0)) {
             revert OrderSetLib__SellOrderCannotBeListedByZeroAddress();
@@ -96,10 +93,7 @@ library OrderSet {
         self.keyPointers[key.listedBy] = self.keyList.length - 1;
     }
 
-    function remove(
-        Set storage self,
-        SellOrder memory key
-    ) internal validCategory(Category(key.category)) {
+    function remove(Set storage self, SellOrder memory key) internal validCategory(Category(key.category)) {
         if (!exists(self, key)) {
             revert OrderSetLib__KeyDoesNotExistInSet();
         }
@@ -138,10 +132,7 @@ library OrderSet {
      * @param key SellOrder The sell order to check for existence
      * @return bool True if the sell order exists in the set, false otherwise
      */
-    function exists(
-        Set storage self,
-        SellOrder memory key
-    ) internal view returns (bool) {
+    function exists(Set storage self, SellOrder memory key) internal view returns (bool) {
         if (self.keyList.length == 0) return false;
         SellOrder storage o = self.keyList[self.keyPointers[key.listedBy]];
         return (o.listedBy == key.listedBy);
@@ -154,10 +145,7 @@ library OrderSet {
      * @param listedBy address The address to check for sell orders
      * @return bool True if the address has listed a sell order, false otherwise
      */
-    function orderExistsForAddress(
-        Set storage self,
-        address listedBy
-    ) internal view returns (bool) {
+    function orderExistsForAddress(Set storage self, address listedBy) internal view returns (bool) {
         if (self.keyList.length == 0) return false;
         SellOrder storage o = self.keyList[self.keyPointers[listedBy]];
         return (o.listedBy == listedBy);
@@ -170,10 +158,7 @@ library OrderSet {
      * @param index uint256 The index of the sell order to retrieve
      * @return SellOrder The sell order at the specified index
      */
-    function orderAtIndex(
-        Set storage self,
-        uint256 index
-    ) internal view returns (SellOrder storage) {
+    function orderAtIndex(Set storage self, uint256 index) internal view returns (SellOrder storage) {
         return self.keyList[index];
     }
 
@@ -184,10 +169,7 @@ library OrderSet {
      * @param listedBy address The address that listed the sell order to retrieve
      * @return SellOrder The sell order listed by the specified address
      */
-    function orderByAddress(
-        Set storage self,
-        address listedBy
-    ) internal view returns (SellOrder storage) {
+    function orderByAddress(Set storage self, address listedBy) internal view returns (SellOrder storage) {
         return self.keyList[self.keyPointers[listedBy]];
     }
 
@@ -199,19 +181,17 @@ library OrderSet {
      * @param category uint8 The category of the sell order to retrieve
      * @return SellOrder The sell order listed by the specified address and category
      */
-    function ordersByAddressAndCategory(
-        Set storage self,
-        address listedBy,
-        Category category
-    ) internal view validCategory(category) returns (SellOrder[] memory) {
+    function ordersByAddressAndCategory(Set storage self, address listedBy, Category category)
+        internal
+        view
+        validCategory(category)
+        returns (SellOrder[] memory)
+    {
         SellOrder[] memory matchingOrders;
         uint256 iCount = 0;
 
         for (uint256 i = 0; i < self.keyList.length; i++) {
-            if (
-                self.keyList[i].listedBy == listedBy &&
-                Category(self.keyList[i].category) == category
-            ) {
+            if (self.keyList[i].listedBy == listedBy && Category(self.keyList[i].category) == category) {
                 matchingOrders[iCount] = self.keyList[i];
                 iCount++;
             }
@@ -240,9 +220,7 @@ library OrderSet {
      * @param self Set The set of sell orders
      * @return SellOrder[] The array of all sell orders in the set
      */
-    function allOrders(
-        Set storage self
-    ) internal view returns (SellOrder[] storage) {
+    function allOrders(Set storage self) internal view returns (SellOrder[] storage) {
         return self.keyList;
     }
 
@@ -254,10 +232,12 @@ library OrderSet {
      * @return SellOrder[] The array of all sell orders in the set by a specific category
      */
 
-    function allOrdersByCategory(
-        Set storage self,
-        Category category
-    ) internal view validCategory(category) returns (SellOrder[] memory) {
+    function allOrdersByCategory(Set storage self, Category category)
+        internal
+        view
+        validCategory(category)
+        returns (SellOrder[] memory)
+    {
         SellOrder[] memory matchingOrders;
         uint256 iCount = 0;
 

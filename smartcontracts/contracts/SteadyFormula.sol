@@ -37,9 +37,7 @@ contract SteadyFormula {
      * @param self Set The set of sell orders
      * @return uint256 The Consumer Price Index (CPI) of the set
      */
-    function getYearlyCPI(
-        OrderSet.Set storage self
-    ) internal view returns (uint256) {
+    function getYearlyCPI(OrderSet.Set storage self) internal view returns (uint256) {
         uint256 currentCost = _totalSalesByDate(self, block.timestamp);
         uint256 priorCost = _totalSalesByDate(self, block.timestamp - 365 days);
         return _getCPI(currentCost, priorCost);
@@ -51,9 +49,7 @@ contract SteadyFormula {
      * @param self Set The set of sell orders
      * @return uint256 The Consumer Price Index (CPI) of the set
      */
-    function getMonthlyCPI(
-        OrderSet.Set storage self
-    ) internal view returns (uint256) {
+    function getMonthlyCPI(OrderSet.Set storage self) internal view returns (uint256) {
         uint256 currentCost = _totalSalesByDate(self, block.timestamp);
         uint256 priorCost = _totalSalesByDate(self, block.timestamp - 30 days);
         return _getCPI(currentCost, priorCost);
@@ -65,9 +61,7 @@ contract SteadyFormula {
      * @param self Set The set of sell orders
      * @return uint256 The yearly inflation rate of the set
      */
-    function getYearlyInflationRate(
-        OrderSet.Set storage self
-    ) internal view returns (uint256) {
+    function getYearlyInflationRate(OrderSet.Set storage self) internal view returns (uint256) {
         uint256 newCPI = getYearlyCPI(self);
         uint256 oldCPI = getYearlyCPI(self);
         return _getInflationRate(newCPI, oldCPI);
@@ -79,9 +73,7 @@ contract SteadyFormula {
      * @param self Set The set of sell orders
      * @return uint256 The monthly inflation rate of the set
      */
-    function getMonthlyInflationRate(
-        OrderSet.Set storage self
-    ) internal view returns (uint256) {
+    function getMonthlyInflationRate(OrderSet.Set storage self) internal view returns (uint256) {
         uint256 newCPI = getMonthlyCPI(self);
         uint256 oldCPI = getMonthlyCPI(self);
         return _getInflationRate(newCPI, oldCPI);
@@ -93,9 +85,7 @@ contract SteadyFormula {
      * @param self Set The set of sell orders
      * @return uint256 The overall sales of items being sold in the set
      */
-    function _totalSales(
-        OrderSet.Set storage self
-    ) internal view returns (uint256) {
+    function _totalSales(OrderSet.Set storage self) internal view returns (uint256) {
         uint256 totalCost = 0;
         for (uint256 i = 0; i < self.keyList.length; i++) {
             totalCost += self.keyList[i].quantity * self.keyList[i].unitPrice;
@@ -110,16 +100,11 @@ contract SteadyFormula {
      * @param vendor address The vendor to filter by
      * @return uint256 The total sales of items being sold in the set by a specific vendor
      */
-    function _totalSalesByVendor(
-        OrderSet.Set storage self,
-        address vendor
-    ) internal view returns (uint256) {
+    function _totalSalesByVendor(OrderSet.Set storage self, address vendor) internal view returns (uint256) {
         uint256 totalCost = 0;
         for (uint256 i = 0; i < self.keyList.length; i++) {
             if (self.keyList[i].listedBy == vendor) {
-                totalCost +=
-                    self.keyList[i].quantity *
-                    self.keyList[i].unitPrice;
+                totalCost += self.keyList[i].quantity * self.keyList[i].unitPrice;
             }
         }
         return totalCost;
@@ -132,19 +117,11 @@ contract SteadyFormula {
      * @param dateSold string The date to filter by
      * @return uint256 The total sales of items being sold in the set by a specific date
      */
-    function _totalSalesByDate(
-        OrderSet.Set storage self,
-        uint256 dateSold
-    ) internal view returns (uint256) {
+    function _totalSalesByDate(OrderSet.Set storage self, uint256 dateSold) internal view returns (uint256) {
         uint256 totalCost = 0;
         for (uint256 i = 0; i < self.keyList.length; i++) {
-            if (
-                keccak256(abi.encodePacked(self.keyList[i].dateSold)) ==
-                keccak256(abi.encodePacked(dateSold))
-            ) {
-                totalCost +=
-                    self.keyList[i].quantity *
-                    self.keyList[i].unitPrice;
+            if (keccak256(abi.encodePacked(self.keyList[i].dateSold)) == keccak256(abi.encodePacked(dateSold))) {
+                totalCost += self.keyList[i].quantity * self.keyList[i].unitPrice;
             }
         }
         return totalCost;
@@ -157,16 +134,16 @@ contract SteadyFormula {
      * @param category uint256 The category to filter by
      * @return uint256 The total cost of items being sold in the set by a specific category
      */
-    function _totalSalesByCategory(
-        OrderSet.Set storage self,
-        OrderSet.Category category
-    ) internal view validCategory(category) returns (uint256) {
+    function _totalSalesByCategory(OrderSet.Set storage self, OrderSet.Category category)
+        internal
+        view
+        validCategory(category)
+        returns (uint256)
+    {
         uint256 totalCost = 0;
         for (uint256 i = 0; i < self.keyList.length; i++) {
             if (OrderSet.Category(self.keyList[i].category) == category) {
-                totalCost +=
-                    self.keyList[i].quantity *
-                    self.keyList[i].unitPrice;
+                totalCost += self.keyList[i].quantity * self.keyList[i].unitPrice;
             }
         }
         return totalCost;
@@ -180,21 +157,19 @@ contract SteadyFormula {
      * @param dateSold string The date to filter by
      * @return uint256 The total cost of items being sold in the set by a specific category and date
      */
-    function _totalSalesByCategoryAndDate(
-        OrderSet.Set storage self,
-        OrderSet.Category category,
-        uint256 dateSold
-    ) internal view validCategory(category) returns (uint256) {
+    function _totalSalesByCategoryAndDate(OrderSet.Set storage self, OrderSet.Category category, uint256 dateSold)
+        internal
+        view
+        validCategory(category)
+        returns (uint256)
+    {
         uint256 totalCost = 0;
         for (uint256 i = 0; i < self.keyList.length; i++) {
             if (
-                OrderSet.Category(self.keyList[i].category) == category &&
-                keccak256(abi.encodePacked(self.keyList[i].dateSold)) ==
-                keccak256(abi.encodePacked(dateSold))
+                OrderSet.Category(self.keyList[i].category) == category
+                    && keccak256(abi.encodePacked(self.keyList[i].dateSold)) == keccak256(abi.encodePacked(dateSold))
             ) {
-                totalCost +=
-                    self.keyList[i].quantity *
-                    self.keyList[i].unitPrice;
+                totalCost += self.keyList[i].quantity * self.keyList[i].unitPrice;
             }
         }
         return totalCost;
@@ -211,10 +186,7 @@ contract SteadyFormula {
      * @param priorCost uint256 The total cost of items being sold in the set by a specific date
      * @return uint256 The Consumer Price Index (CPI)
      */
-    function _getCPI(
-        uint256 currentCost,
-        uint256 priorCost
-    ) internal pure returns (uint256) {
+    function _getCPI(uint256 currentCost, uint256 priorCost) internal pure returns (uint256) {
         return (currentCost / priorCost) * 100;
     }
 
@@ -229,10 +201,7 @@ contract SteadyFormula {
      * @param oldCPI uint256 The Consumer Price Index (CPI) of the set
      * @return uint256 The inflation rate
      */
-    function _getInflationRate(
-        uint256 newCPI,
-        uint256 oldCPI
-    ) internal pure returns (uint256) {
+    function _getInflationRate(uint256 newCPI, uint256 oldCPI) internal pure returns (uint256) {
         return ((newCPI - oldCPI) / oldCPI) * 100;
     }
 }

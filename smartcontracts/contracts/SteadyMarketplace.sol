@@ -72,6 +72,7 @@ contract SteadyMarketplace is Context, Ownable {
         uint256 dateUpdated;
     }
     // VendorStore data structure to store vendor store details
+
     struct VendorStore {
         uint256 storeId;
         address vendorAddress;
@@ -90,8 +91,8 @@ contract SteadyMarketplace is Context, Ownable {
     mapping(address => VendorStore) public allVendorStores;
 
     // Event when new vendor is created
+    // Account address of the vendor
     event VendorCreated(
-        // Account address of the vendor
         address vendorAddress,
         // Id of the vendor
         uint256 vendorId,
@@ -108,8 +109,8 @@ contract SteadyMarketplace is Context, Ownable {
     );
 
     // Event when vendor is updated
+    // Account address of the vendor
     event VendorUpdated(
-        // Account address of the vendor
         address vendorAddress,
         // Id of the vendor
         uint256 vendorId,
@@ -124,8 +125,8 @@ contract SteadyMarketplace is Context, Ownable {
     );
 
     // Event when new vendor store is created
+    // store id of the vendor
     event VendorStoreCreated(
-        // store id of the vendor
         uint256 storeId,
         // Account address of the vendor
         address vendorAddress,
@@ -144,8 +145,8 @@ contract SteadyMarketplace is Context, Ownable {
     );
 
     // Event when vendor store is updated
+    // Account address of the vendor
     event VendorStoreUpdated(
-        // Account address of the vendor
         address vendorAddress,
         // store id of the vendor
         uint256 storeId,
@@ -160,8 +161,8 @@ contract SteadyMarketplace is Context, Ownable {
     );
 
     // Event to indicate a item is listed for sale
+    // Account address of the item owner
     event ListedForSale(
-        // Account address of the item owner
         address account,
         // market order id
         uint256 orderId,
@@ -176,16 +177,16 @@ contract SteadyMarketplace is Context, Ownable {
     );
 
     // Event to indicate a item is unlisted from sale
+    // Account address of the item owner
     event UnlistedFromSale(
-        // Account address of the item owner
         address account,
         // market order id
         uint256 orderId
     );
 
     // Event to indicate a item is sold
+    // Account address of the item seller
     event ItemSold(
-        // Account address of the item seller
         address from,
         // Account address of the item buyer
         address to,
@@ -216,10 +217,7 @@ contract SteadyMarketplace is Context, Ownable {
     // modifier to check if the vendor name is already exists
     modifier validVendorName(string memory name) {
         for (uint256 i = 0; i < vendorIdCounter; i++) {
-            if (
-                keccak256(bytes(allVendors[_msgSender()].vendorName)) ==
-                keccak256(bytes(name))
-            ) {
+            if (keccak256(bytes(allVendors[_msgSender()].vendorName)) == keccak256(bytes(name))) {
                 revert SteadyMarketplace__VendorNameAlreadyExist();
             }
         }
@@ -245,10 +243,7 @@ contract SteadyMarketplace is Context, Ownable {
     // modifier to check if vendorStore name is already exists
     modifier validVendorStoreName(string memory name) {
         for (uint256 i = 0; i < allVendorStores[_msgSender()].storeId; i++) {
-            if (
-                keccak256(bytes(allVendorStores[_msgSender()].storeName)) ==
-                keccak256(bytes(name))
-            ) {
+            if (keccak256(bytes(allVendorStores[_msgSender()].storeName)) == keccak256(bytes(name))) {
                 revert SteadyMarketplace__StoreNameAlreadyExist();
             }
         }
@@ -334,17 +329,11 @@ contract SteadyMarketplace is Context, Ownable {
         uint256 newDate = block.timestamp;
         allVendors[vendorAddress].vendorName = vendorName;
         allVendors[vendorAddress].vendorDescription = vendorDescription;
-        allVendors[vendorAddress]
-            .vendorBusinessRegistrationNumber = vendorBusinessRegistrationNumber;
+        allVendors[vendorAddress].vendorBusinessRegistrationNumber = vendorBusinessRegistrationNumber;
         allVendors[vendorAddress].dateUpdated = newDate;
 
         emit VendorUpdated(
-            vendorAddress,
-            vendorId,
-            vendorName,
-            vendorDescription,
-            vendorBusinessRegistrationNumber,
-            newDate
+            vendorAddress, vendorId, vendorName, vendorDescription, vendorBusinessRegistrationNumber, newDate
         );
     }
 
@@ -366,9 +355,7 @@ contract SteadyMarketplace is Context, Ownable {
      * @param vendorAddress - Address of the vendor
      * @return Vendor details
      */
-    function getVendorByAddress(
-        address vendorAddress
-    ) external view returns (Vendor memory) {
+    function getVendorByAddress(address vendorAddress) external view returns (Vendor memory) {
         return allVendors[vendorAddress];
     }
 
@@ -377,16 +364,13 @@ contract SteadyMarketplace is Context, Ownable {
      * @param vendorId - Id of the vendor
      * @return Vendor details
      */
-    function getVendorById(
-        uint256 vendorId
-    ) external view returns (Vendor memory) {
+    function getVendorById(uint256 vendorId) external view returns (Vendor memory) {
         for (uint256 i = 0; i < vendorIdCounter; i++) {
             if (allVendors[_msgSender()].vendorId == vendorId) {
                 return allVendors[_msgSender()];
             }
         }
-        return
-            Vendor(0, address(0), "", "", "", block.timestamp, block.timestamp);
+        return Vendor(0, address(0), "", "", "", block.timestamp, block.timestamp);
     }
 
     /**
@@ -394,19 +378,13 @@ contract SteadyMarketplace is Context, Ownable {
      * @param vendorName - Name of the vendor
      * @return Vendor details
      */
-    function getVendorByName(
-        string memory vendorName
-    ) external view returns (Vendor memory) {
+    function getVendorByName(string memory vendorName) external view returns (Vendor memory) {
         for (uint256 i = 0; i < vendorIdCounter; i++) {
-            if (
-                keccak256(bytes(allVendors[_msgSender()].vendorName)) ==
-                keccak256(bytes(vendorName))
-            ) {
+            if (keccak256(bytes(allVendors[_msgSender()].vendorName)) == keccak256(bytes(vendorName))) {
                 return allVendors[_msgSender()];
             }
         }
-        return
-            Vendor(0, address(0), "", "", "", block.timestamp, block.timestamp);
+        return Vendor(0, address(0), "", "", "", block.timestamp, block.timestamp);
     }
 
     /**
@@ -423,20 +401,11 @@ contract SteadyMarketplace is Context, Ownable {
         uint256 newDate = block.timestamp;
 
         // create random store address for vendor
-        address storeAddress = address(
-            uint160(uint256(keccak256(abi.encodePacked(_msgSender()))))
-        );
+        address storeAddress = address(uint160(uint256(keccak256(abi.encodePacked(_msgSender())))));
 
         // Create a new vendor store with push
         VendorStore memory vc = VendorStore(
-            storeCounter,
-            _msgSender(),
-            storeAddress,
-            storeName,
-            storeDescription,
-            storeCategory,
-            newDate,
-            newDate
+            storeCounter, _msgSender(), storeAddress, storeName, storeDescription, storeCategory, newDate, newDate
         );
 
         // Add the vendor store to the vendor stores mapping
@@ -447,14 +416,7 @@ contract SteadyMarketplace is Context, Ownable {
 
         // Emit the VendorStoreCreated event
         emit VendorStoreCreated(
-            storeCounter,
-            _msgSender(),
-            storeAddress,
-            storeName,
-            storeDescription,
-            storeCategory,
-            newDate,
-            newDate
+            storeCounter, _msgSender(), storeAddress, storeName, storeDescription, storeCategory, newDate, newDate
         );
     }
 
@@ -465,23 +427,18 @@ contract SteadyMarketplace is Context, Ownable {
      * @param storeDescription - Description of the vendor store
      */
 
-    function updateVendorStore(
-        address storeAddress,
-        string memory storeName,
-        string memory storeDescription
-    ) external onlyVendor validStore(storeAddress) {
+    function updateVendorStore(address storeAddress, string memory storeName, string memory storeDescription)
+        external
+        onlyVendor
+        validStore(storeAddress)
+    {
         uint256 newDate = block.timestamp;
         allVendorStores[storeAddress].storeName = storeName;
         allVendorStores[storeAddress].storeDescription = storeDescription;
         allVendorStores[storeAddress].dateUpdated = newDate;
 
         emit VendorStoreUpdated(
-            _msgSender(),
-            allVendorStores[storeAddress].storeId,
-            storeAddress,
-            storeName,
-            storeDescription,
-            newDate
+            _msgSender(), allVendorStores[storeAddress].storeId, storeAddress, storeName, storeDescription, newDate
         );
     }
 
@@ -503,9 +460,7 @@ contract SteadyMarketplace is Context, Ownable {
      * @param storeAddress - Address of the vendor store
      * @return Vendor store details
      */
-    function getVendorStoreByAddress(
-        address storeAddress
-    ) external view returns (VendorStore memory) {
+    function getVendorStoreByAddress(address storeAddress) external view returns (VendorStore memory) {
         return allVendorStores[storeAddress];
     }
 
@@ -514,25 +469,13 @@ contract SteadyMarketplace is Context, Ownable {
      * @param storeId - Id of the vendor store
      * @return Vendor store details
      */
-    function getVendorStoreById(
-        uint256 storeId
-    ) external view returns (VendorStore memory) {
+    function getVendorStoreById(uint256 storeId) external view returns (VendorStore memory) {
         for (uint256 i = 0; i < storeCounter; i++) {
             if (allVendorStores[_msgSender()].storeId == storeId) {
                 return allVendorStores[_msgSender()];
             }
         }
-        return
-            VendorStore(
-                0,
-                address(0),
-                address(0),
-                "",
-                "",
-                OrderSet.Category(0),
-                block.timestamp,
-                block.timestamp
-            );
+        return VendorStore(0, address(0), address(0), "", "", OrderSet.Category(0), block.timestamp, block.timestamp);
     }
 
     /**
@@ -540,28 +483,13 @@ contract SteadyMarketplace is Context, Ownable {
      * @param name - Name of the vendor store
      * @return Vendor store details
      */
-    function getVendorStoreByName(
-        string memory name
-    ) external view returns (VendorStore memory) {
+    function getVendorStoreByName(string memory name) external view returns (VendorStore memory) {
         for (uint256 i = 0; i < storeCounter; i++) {
-            if (
-                keccak256(bytes(allVendorStores[_msgSender()].storeName)) ==
-                keccak256(bytes(name))
-            ) {
+            if (keccak256(bytes(allVendorStores[_msgSender()].storeName)) == keccak256(bytes(name))) {
                 return allVendorStores[_msgSender()];
             }
         }
-        return
-            VendorStore(
-                0,
-                address(0),
-                address(0),
-                "",
-                "",
-                OrderSet.Category(0),
-                block.timestamp,
-                block.timestamp
-            );
+        return VendorStore(0, address(0), address(0), "", "", OrderSet.Category(0), block.timestamp, block.timestamp);
     }
 
     /*
@@ -569,9 +497,7 @@ contract SteadyMarketplace is Context, Ownable {
      * @param vendorAddress - Address of the vendor
      * @return Vendor store details
      */
-    function getStoreByVendorAddress(
-        address vendorAddress
-    ) external view returns (VendorStore memory) {
+    function getStoreByVendorAddress(address vendorAddress) external view returns (VendorStore memory) {
         return allVendorStores[vendorAddress];
     }
 
@@ -584,12 +510,11 @@ contract SteadyMarketplace is Context, Ownable {
      * @param category       - The category of the item.
      */
 
-    function createSellOrder(
-        uint256 orderId,
-        uint256 unitPrice,
-        uint256 noOfItemsForSale,
-        OrderSet.Category category
-    ) external onlyVendor hasCreatedStore {
+    function createSellOrder(uint256 orderId, uint256 unitPrice, uint256 noOfItemsForSale, OrderSet.Category category)
+        external
+        onlyVendor
+        hasCreatedStore
+    {
         if (unitPrice <= 0) {
             revert SteadyMarketplace__InsufficientBalance();
         }
@@ -605,24 +530,12 @@ contract SteadyMarketplace is Context, Ownable {
         uint256 newDate = block.timestamp;
 
         // Create a new sell order using the SellOrder constructor
-        OrderSet.SellOrder memory o = OrderSet.SellOrder(
-            _msgSender(),
-            noOfItemsForSale,
-            unitPrice,
-            OrderSet.Category(category),
-            newDate
-        );
+        OrderSet.SellOrder memory o =
+            OrderSet.SellOrder(_msgSender(), noOfItemsForSale, unitPrice, OrderSet.Category(category), newDate);
         marketOrder.insert(o);
 
         // Emit the 'ListedForSale' event to signal that a new item has been listed for sale
-        emit ListedForSale(
-            _msgSender(),
-            orderId,
-            noOfItemsForSale,
-            unitPrice,
-            category,
-            newDate
-        );
+        emit ListedForSale(_msgSender(), orderId, noOfItemsForSale, unitPrice, category, newDate);
     }
 
     /**
@@ -630,9 +543,7 @@ contract SteadyMarketplace is Context, Ownable {
      *
      * @param orderId - The ID of the item to be unlisted.
      */
-    function cancelSellOrder(
-        uint256 orderId
-    ) external onlyVendor hasCreatedStore {
+    function cancelSellOrder(uint256 orderId) external onlyVendor hasCreatedStore {
         // Get the sell order set of the given item.
         OrderSet.Set storage itemOrders = orders[orderId];
 
@@ -656,11 +567,7 @@ contract SteadyMarketplace is Context, Ownable {
      * @param itemOwner - address of the seller who is selling the item.
      */
 
-    function createBuyOrder(
-        uint256 orderId,
-        uint256 noOfItemsToBuy,
-        address payable itemOwner
-    ) external payable {
+    function createBuyOrder(uint256 orderId, uint256 noOfItemsToBuy, address payable itemOwner) external payable {
         // Get the unique identifier for the order set of the given item.
 
         // Get the sell order set of the given item.
@@ -672,9 +579,7 @@ contract SteadyMarketplace is Context, Ownable {
         }
 
         // Get the sell order for the given item by the item owner.
-        OrderSet.SellOrder storage sellOrder = itemOrders.orderByAddress(
-            itemOwner
-        );
+        OrderSet.SellOrder storage sellOrder = itemOrders.orderByAddress(itemOwner);
 
         // Validate that the required buy quantity is available for sale
         if (sellOrder.quantity < noOfItemsToBuy) {
@@ -705,13 +610,7 @@ contract SteadyMarketplace is Context, Ownable {
         }
 
         // Emit ItemSold event on successful purchase
-        emit ItemSold(
-            itemOwner,
-            _msgSender(),
-            orderId,
-            noOfItemsToBuy,
-            msg.value
-        );
+        emit ItemSold(itemOwner, _msgSender(), orderId, noOfItemsToBuy, msg.value);
     }
 
     /**
@@ -719,9 +618,7 @@ contract SteadyMarketplace is Context, Ownable {
      * @param orderId  - The ID of of the item
      * @return An array of sell orders for the given item
      */
-    function getOrders(
-        uint256 orderId
-    ) external view returns (OrderSet.SellOrder[] memory) {
+    function getOrders(uint256 orderId) external view returns (OrderSet.SellOrder[] memory) {
         return orders[orderId].allOrders();
     }
 
@@ -731,18 +628,14 @@ contract SteadyMarketplace is Context, Ownable {
      * @param listedBy address of the owner
      * @return Sell order of a item for the given owner
      */
-    function getOrderByAddress(
-        uint256 orderId,
-        address listedBy
-    ) public view returns (OrderSet.SellOrder memory) {
+    function getOrderByAddress(uint256 orderId, address listedBy) public view returns (OrderSet.SellOrder memory) {
         // Get the SellOrderSet for the item
         OrderSet.Set storage itemOrders = orders[orderId];
 
         // Check if a SellOrder not exists for the given owner
         if (!itemOrders.orderExistsForAddress(listedBy)) {
             // If true, return an empty SellOrder
-            return
-                OrderSet.SellOrder(address(0), 0, 0, OrderSet.Category(0), 0);
+            return OrderSet.SellOrder(address(0), 0, 0, OrderSet.Category(0), 0);
         }
         // Else  Return the SellOrder for the given owner
         return itemOrders.orderByAddress(listedBy);
@@ -754,10 +647,11 @@ contract SteadyMarketplace is Context, Ownable {
      * @param category category of the item
      * @return An array of sell orders for the given item and category
      */
-    function getOrdersByCategory(
-        uint256 orderId,
-        OrderSet.Category category
-    ) external view returns (OrderSet.SellOrder[] memory) {
+    function getOrdersByCategory(uint256 orderId, OrderSet.Category category)
+        external
+        view
+        returns (OrderSet.SellOrder[] memory)
+    {
         return orders[orderId].allOrdersByCategory(category);
     }
 
@@ -768,11 +662,11 @@ contract SteadyMarketplace is Context, Ownable {
      * @param listedBy address of the owner
      * @return An array of sell orders for the given item, category and owner
      */
-    function getOrdersByCategoryAndAddress(
-        uint256 orderId,
-        OrderSet.Category category,
-        address listedBy
-    ) external view returns (OrderSet.SellOrder[] memory) {
+    function getOrdersByCategoryAndAddress(uint256 orderId, OrderSet.Category category, address listedBy)
+        external
+        view
+        returns (OrderSet.SellOrder[] memory)
+    {
         return orders[orderId].ordersByAddressAndCategory(listedBy, category);
     }
 
@@ -781,16 +675,13 @@ contract SteadyMarketplace is Context, Ownable {
      * @param storeAddress address of the store that holds the item
      * @param amount amount to be withdrawn
      */
-    function vendorWithdrawal(
-        address storeAddress,
-        uint256 amount
-    )
+    function vendorWithdrawal(address storeAddress, uint256 amount)
         external
         onlyVendor
         validStore(storeAddress)
         sufficientVendorBalance(storeAddress, amount)
     {
-        (bool vs, ) = _msgSender().call{value: amount}("");
+        (bool vs,) = _msgSender().call{value: amount}("");
         if (!vs) {
             revert SteadyMarketplace__FailedToSendEtherToTheVendor();
         }
@@ -799,12 +690,8 @@ contract SteadyMarketplace is Context, Ownable {
     /**
      * ownerWithdrawal function allows the owner to withdraw the funds from the contract
      */
-    function ownerWithdrawal()
-        external
-        onlyOwner
-        sufficientOwnerBalance(address(this).balance)
-    {
-        (bool os, ) = owner().call{value: address(this).balance}("");
+    function ownerWithdrawal() external onlyOwner sufficientOwnerBalance(address(this).balance) {
+        (bool os,) = owner().call{value: address(this).balance}("");
         if (!os) {
             revert SteadyMarketplace__FailedToSendEtherToTheOwner();
         }
