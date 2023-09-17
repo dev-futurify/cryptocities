@@ -13,6 +13,8 @@ contract SteadyFormulaTest is Test {
     SteadyFormula private steadyFormula;
     OrderSet.Set private orderSet;
 
+    mapping(uint256 => OrderSet.Set) private orders;
+
     function setUp() public {
         steadyFormula = new SteadyFormula();
     }
