@@ -10,8 +10,11 @@ test@forge:
 test@forge-verbose:
 	forge test -vv
 
-test@forge-full-verbose:
+test@forge-verbose-full:
 	forge test -vvvv
+
+test@debug-function:
+	forge test --debug "$(FUNCTION)"
 
 test@contract-gas:
 	REPORT_GAS=true npx hardhat test
