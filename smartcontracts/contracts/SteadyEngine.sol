@@ -344,7 +344,6 @@ contract SteadyEngine is ReentrancyGuard {
         return totalCollateralValue;
     }
 
-    // change the contract address of the formula and only the owner can call this function
     function changeFormulaAddress(address newAddress) external onlyOwner {
         i_formula = ISteadyFormula(newAddress);
     }

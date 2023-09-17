@@ -13,8 +13,8 @@ pragma solidity ^0.8.19;
 
 library OrderSet {
     error OrderSetLib__SellOrderCannotBeListedByZeroAddress();
-    error OrderSetLib__SellOrderCannotHaveZeroTokenCount();
-    error OrderSetLib__SellOrderCannotHaveZeroTokenPrice();
+    error OrderSetLib__SellOrderCannotHaveZeroItemCount();
+    error OrderSetLib__SellOrderCannotHaveZeroItemPrice();
     error OrderSetLib__KeyAlreadyExistsInSet();
     error OrderSetLib__CategoryMustBeBetween0And7();
     error OrderSetLib__DateSoldMustBeBlockTimestamp();
@@ -39,12 +39,12 @@ library OrderSet {
         _;
     }
 
-    // SellOrder structure representing a sell order, containing the address of the seller, the quantity of tokens being sold, and the unit price of the tokens.
+    // SellOrder structure representing a sell order, containing the address of the seller, the quantity of items being sold, and the unit price of the items.
     // TODO: connect vendor and vendor store in SellOrder
     struct SellOrder {
         address listedBy; // Address of the seller
-        uint256 quantity; // Quantity of tokens being sold
-        uint256 unitPrice; // Unit price of the tokens
+        uint256 quantity; // Quantity of items being sold
+        uint256 unitPrice; // Unit price of the items
         Category category; // Category of the sell order
         uint256 dateSold; // Date the sell order was created
     }
@@ -65,14 +65,14 @@ library OrderSet {
             revert OrderSetLib__SellOrderCannotBeListedByZeroAddress();
         }
 
-        // Check if the quantity of tokens being sold is greater than 0.
+        // Check if the quantity of items being sold is greater than 0.
         if (key.quantity <= 0) {
-            revert OrderSetLib__SellOrderCannotHaveZeroTokenCount();
+            revert OrderSetLib__SellOrderCannotHaveZeroItemCount();
         }
 
-        // Check if the unit price of the tokens is greater than 0.
+        // Check if the unit price of the items is greater than 0.
         if (key.unitPrice <= 0) {
-            revert OrderSetLib__SellOrderCannotHaveZeroTokenPrice();
+            revert OrderSetLib__SellOrderCannotHaveZeroItemPrice();
         }
 
         // Check if the SellOrder is already in the Set.

@@ -88,10 +88,10 @@ contract SteadyFormula {
     }
 
     /**
-     * Get the overall sales of tokens being sold in the set
+     * Get the overall sales of items being sold in the set
      *
      * @param self Set The set of sell orders
-     * @return uint256 The overall sales of tokens being sold in the set
+     * @return uint256 The overall sales of items being sold in the set
      */
     function _totalSales(
         OrderSet.Set storage self
@@ -104,11 +104,11 @@ contract SteadyFormula {
     }
 
     /**
-     * Get the total sales of tokens being sold in the set by a specific vendor
+     * Get the total sales of items being sold in the set by a specific vendor
      *
      * @param self Set The set of sell orders
      * @param vendor address The vendor to filter by
-     * @return uint256 The total sales of tokens being sold in the set by a specific vendor
+     * @return uint256 The total sales of items being sold in the set by a specific vendor
      */
     function _totalSalesByVendor(
         OrderSet.Set storage self,
@@ -126,11 +126,11 @@ contract SteadyFormula {
     }
 
     /**
-     * Get the total sales of tokens being sold in the set by a specific date
+     * Get the total sales of items being sold in the set by a specific date
      *
      * @param self Set The set of sell orders
      * @param dateSold string The date to filter by
-     * @return uint256 The total sales of tokens being sold in the set by a specific date
+     * @return uint256 The total sales of items being sold in the set by a specific date
      */
     function _totalSalesByDate(
         OrderSet.Set storage self,
@@ -151,11 +151,11 @@ contract SteadyFormula {
     }
 
     /**
-     * Get the total cost of tokens being sold in the set by a specific category
+     * Get the total cost of items being sold in the set by a specific category
      *
      * @param self Set The set of sell orders
      * @param category uint256 The category to filter by
-     * @return uint256 The total cost of tokens being sold in the set by a specific category
+     * @return uint256 The total cost of items being sold in the set by a specific category
      */
     function _totalSalesByCategory(
         OrderSet.Set storage self,
@@ -173,12 +173,12 @@ contract SteadyFormula {
     }
 
     /**
-     * Get the total cost of tokens being sold in the set by a specific category and date
+     * Get the total cost of items being sold in the set by a specific category and date
      *
      * @param self Set The set of sell orders
      * @param category uint256 The category to filter by
      * @param dateSold string The date to filter by
-     * @return uint256 The total cost of tokens being sold in the set by a specific category and date
+     * @return uint256 The total cost of items being sold in the set by a specific category and date
      */
     function _totalSalesByCategoryAndDate(
         OrderSet.Set storage self,
@@ -204,11 +204,11 @@ contract SteadyFormula {
      * Get the Consumer Price Index (CPI)
      * CPI = (currentCost / priorCost) * 100
      *
-     * currentCost = total cost of tokens being sold in the set by a specific date
-     * priorCost = total cost of tokens being sold in the set by a specific date
+     * currentCost = total cost of items being sold in the set by a specific date
+     * priorCost = total cost of items being sold in the set by a specific date
      *
-     * @param currentCost uint256 The total cost of tokens being sold in the set by a specific date
-     * @param priorCost uint256 The total cost of tokens being sold in the set by a specific date
+     * @param currentCost uint256 The total cost of items being sold in the set by a specific date
+     * @param priorCost uint256 The total cost of items being sold in the set by a specific date
      * @return uint256 The Consumer Price Index (CPI)
      */
     function _getCPI(

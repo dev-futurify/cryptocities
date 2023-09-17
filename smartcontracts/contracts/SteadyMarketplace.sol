@@ -24,18 +24,19 @@ interface ISteadyFormula {
 
 contract SteadyMarketplace is Context, Ownable {
     error SteadyMarketplace__OnlyVendor();
+    error SteadyMarketplace__VendorNameAlreadyExist();
     error SteadyMarketplace__VendorFeeNotPaid();
     error SteadyMarketplace__VendorHasNotCreatedStore();
     error SteadyMarketplace__StoreNameAlreadyExist();
     error SteadyMarketplace__StoreDoesNotExist();
     error SteadyMarketplace__InsufficientBalance();
-    error SteadyMarketplace__CallerHasNotApprovedContractForTokenTransfer();
-    error SteadyMarketplace__CallerDoesNotOwnToken();
-    error SteadyMarketplace__TokenIsNotListedForSaleByTheOwner();
+    error SteadyMarketplace__CallerHasNotApprovedContractForItemTransfer();
+    error SteadyMarketplace__CallerDoesNotOwnItem();
+    error SteadyMarketplace__ItemIsNotListedForSaleByTheOwner();
     error SteadyMarketplace__AttemptingToBuyMoreThanAvailableForSale();
     error SteadyMarketplace__LessETHProvidedForThePurchase();
-    error SteadyMarketplace__SellerHasRemovedContractsApprovalForTokenTransfer();
-    error SteadyMarketplace__FailedToSendEtherToTheTokenOwner();
+    error SteadyMarketplace__SellerHasRemovedContractsApprovalForItemTransfer();
+    error SteadyMarketplace__FailedToSendEtherToTheItemOwner();
     error SteadyMarketplace__FailedToSendEtherToTheVendor();
     error SteadyMarketplace__FailedToSendEtherToTheOwner();
 
@@ -55,7 +56,7 @@ contract SteadyMarketplace is Context, Ownable {
     mapping(uint256 => OrderSet.Set) private orders;
 
     // counter to keep track of the number of vendors
-    uint256 public vendorCounter;
+    uint256 public vendorIdCounter = 1;
 
     // counter to keep track of the number of stores and it will be associated with the vendor
     uint256 public storeCounter;
@@ -158,15 +159,15 @@ contract SteadyMarketplace is Context, Ownable {
         uint256 dateUpdated
     );
 
-    // Event to indicate a token is listed for sale
+    // Event to indicate a item is listed for sale
     event ListedForSale(
-        // Account address of the token owner
+        // Account address of the item owner
         address account,
         // market order id
         uint256 orderId,
-        // Number of tokens for sale
-        uint256 noOfTokensForSale,
-        // Unit price of each token
+        // Number of items for sale
+        uint256 noOfItemsForSale,
+        // Unit price of each item
         uint256 unitPrice,
         // Category of the item
         OrderSet.Category category,
@@ -174,24 +175,24 @@ contract SteadyMarketplace is Context, Ownable {
         uint256 date
     );
 
-    // Event to indicate a token is unlisted from sale
+    // Event to indicate a item is unlisted from sale
     event UnlistedFromSale(
-        // Account address of the token owner
+        // Account address of the item owner
         address account,
         // market order id
         uint256 orderId
     );
 
-    // Event to indicate a token is sold
+    // Event to indicate a item is sold
     event ItemSold(
-        // Account address of the token seller
+        // Account address of the item seller
         address from,
-        // Account address of the token buyer
+        // Account address of the item buyer
         address to,
         // market order id
         uint256 orderId,
-        // Number of tokens sold
-        uint256 tokenCount,
+        // Number of items sold
+        uint256 itemCount,
         // Purchase amount
         uint256 puchaseAmount
     );
@@ -208,6 +209,19 @@ contract SteadyMarketplace is Context, Ownable {
     modifier paidVendorFee() {
         if (msg.value < VENDOR_FEE) {
             revert SteadyMarketplace__VendorFeeNotPaid();
+        }
+        _;
+    }
+
+    // modifier to check if the vendor name is already exists
+    modifier validVendorName(string memory name) {
+        for (uint256 i = 0; i < vendorIdCounter; i++) {
+            if (
+                keccak256(bytes(allVendors[_msgSender()].vendorName)) ==
+                keccak256(bytes(name))
+            ) {
+                revert SteadyMarketplace__VendorNameAlreadyExist();
+            }
         }
         _;
     }
@@ -275,7 +289,7 @@ contract SteadyMarketplace is Context, Ownable {
         uint256 newDate = block.timestamp;
         // Create a new vendor with push
         Vendor memory v = Vendor(
-            vendorCounter,
+            vendorIdCounter,
             _msgSender(),
             vendorName,
             vendorDescription,
@@ -290,7 +304,7 @@ contract SteadyMarketplace is Context, Ownable {
         // Emit the VendorCreated event
         emit VendorCreated(
             _msgSender(),
-            vendorCounter,
+            vendorIdCounter,
             vendorName,
             vendorDescription,
             vendorBusinessRegistrationNumber,
@@ -299,7 +313,7 @@ contract SteadyMarketplace is Context, Ownable {
         );
 
         // Increment the vendor counter
-        vendorCounter++;
+        vendorIdCounter++;
     }
 
     /**
@@ -316,7 +330,7 @@ contract SteadyMarketplace is Context, Ownable {
         string memory vendorName,
         string memory vendorDescription,
         string memory vendorBusinessRegistrationNumber
-    ) external payable onlyVendor validVendorStoreName(vendorName) {
+    ) external onlyVendor validVendorName(vendorName) {
         uint256 newDate = block.timestamp;
         allVendors[vendorAddress].vendorName = vendorName;
         allVendors[vendorAddress].vendorDescription = vendorDescription;
@@ -340,8 +354,8 @@ contract SteadyMarketplace is Context, Ownable {
      * @return An array of vendors
      */
     function getAllVendors() external view returns (Vendor[] memory) {
-        Vendor[] memory vendors = new Vendor[](vendorCounter);
-        for (uint256 i = 0; i < vendorCounter; i++) {
+        Vendor[] memory vendors = new Vendor[](vendorIdCounter);
+        for (uint256 i = 0; i < vendorIdCounter; i++) {
             vendors[i] = allVendors[_msgSender()];
         }
         return vendors;
@@ -359,6 +373,23 @@ contract SteadyMarketplace is Context, Ownable {
     }
 
     /**
+     * getVendorById - Returns the vendor details for the given vendor id
+     * @param vendorId - Id of the vendor
+     * @return Vendor details
+     */
+    function getVendorById(
+        uint256 vendorId
+    ) external view returns (Vendor memory) {
+        for (uint256 i = 0; i < vendorIdCounter; i++) {
+            if (allVendors[_msgSender()].vendorId == vendorId) {
+                return allVendors[_msgSender()];
+            }
+        }
+        return
+            Vendor(0, address(0), "", "", "", block.timestamp, block.timestamp);
+    }
+
+    /**
      * getVendorByName - Returns the vendor details for the given vendor name
      * @param vendorName - Name of the vendor
      * @return Vendor details
@@ -366,7 +397,7 @@ contract SteadyMarketplace is Context, Ownable {
     function getVendorByName(
         string memory vendorName
     ) external view returns (Vendor memory) {
-        for (uint256 i = 0; i < vendorCounter; i++) {
+        for (uint256 i = 0; i < vendorIdCounter; i++) {
             if (
                 keccak256(bytes(allVendors[_msgSender()].vendorName)) ==
                 keccak256(bytes(vendorName))
@@ -388,7 +419,7 @@ contract SteadyMarketplace is Context, Ownable {
         string memory storeName,
         string memory storeDescription,
         OrderSet.Category storeCategory
-    ) external payable onlyVendor validVendorStoreName(storeName) {
+    ) external onlyVendor validVendorStoreName(storeName) {
         uint256 newDate = block.timestamp;
 
         // create random store address for vendor
@@ -438,7 +469,7 @@ contract SteadyMarketplace is Context, Ownable {
         address storeAddress,
         string memory storeName,
         string memory storeDescription
-    ) external payable onlyVendor validStore(storeAddress) {
+    ) external onlyVendor validStore(storeAddress) {
         uint256 newDate = block.timestamp;
         allVendorStores[storeAddress].storeName = storeName;
         allVendorStores[storeAddress].storeDescription = storeDescription;
@@ -549,19 +580,16 @@ contract SteadyMarketplace is Context, Ownable {
      *
      * @param orderId        - The ID of the item being sold.
      * @param unitPrice      - The price of a single item in wei.
-     * @param noOfTokensForSale - The number of itemss being sold.
+     * @param noOfItemsForSale - The number of itemss being sold.
      * @param category       - The category of the item.
      */
 
     function createSellOrder(
         uint256 orderId,
         uint256 unitPrice,
-        uint256 noOfTokensForSale,
+        uint256 noOfItemsForSale,
         OrderSet.Category category
-    )
-        external
-        onlyVendor // hasCreatedStore
-    {
+    ) external onlyVendor hasCreatedStore {
         if (unitPrice <= 0) {
             revert SteadyMarketplace__InsufficientBalance();
         }
@@ -569,7 +597,7 @@ contract SteadyMarketplace is Context, Ownable {
         // Get the sell order set for the given item
         OrderSet.Set storage marketOrder = orders[orderId];
 
-        // Require that the token is not already listed for sale by the same owner
+        // Require that the item is not already listed for sale by the same owner
         if (marketOrder.orderExistsForAddress(_msgSender())) {
             revert SteadyMarketplace__InsufficientBalance();
         }
@@ -579,7 +607,7 @@ contract SteadyMarketplace is Context, Ownable {
         // Create a new sell order using the SellOrder constructor
         OrderSet.SellOrder memory o = OrderSet.SellOrder(
             _msgSender(),
-            noOfTokensForSale,
+            noOfItemsForSale,
             unitPrice,
             OrderSet.Category(category),
             newDate
@@ -590,7 +618,7 @@ contract SteadyMarketplace is Context, Ownable {
         emit ListedForSale(
             _msgSender(),
             orderId,
-            noOfTokensForSale,
+            noOfItemsForSale,
             unitPrice,
             category,
             newDate
@@ -598,22 +626,19 @@ contract SteadyMarketplace is Context, Ownable {
     }
 
     /**
-     * cancelSellOrder - Cancels the sell order created by the caller for a specific item token.
+     * cancelSellOrder - Cancels the sell order created by the caller for a specific item.
      *
      * @param orderId - The ID of the item to be unlisted.
      */
     function cancelSellOrder(
         uint256 orderId
-    )
-        external
-        onlyVendor // hasCreatedStore
-    {
-        // Get the sell order set of the given item token.
+    ) external onlyVendor hasCreatedStore {
+        // Get the sell order set of the given item.
         OrderSet.Set storage itemOrders = orders[orderId];
 
         // Ensure that the sell order exists for the caller.
         if (!itemOrders.orderExistsForAddress(_msgSender())) {
-            revert SteadyMarketplace__TokenIsNotListedForSaleByTheOwner();
+            revert SteadyMarketplace__ItemIsNotListedForSaleByTheOwner();
         }
 
         // Remove the sell order from the set.
@@ -624,75 +649,75 @@ contract SteadyMarketplace is Context, Ownable {
     }
 
     /**
-     * createBuyOrder - Create a buy order for an item token.
+     * createBuyOrder - Create a buy order for an item.
      *
      * @param orderId - The ID of the item being sold.
-     * @param noOfTokensToBuy - number of tokens the buyer wants to purchase.
-     * @param tokenOwner - address of the seller who is selling the token.
+     * @param noOfItemsToBuy - number of items the buyer wants to purchase.
+     * @param itemOwner - address of the seller who is selling the item.
      */
 
     function createBuyOrder(
         uint256 orderId,
-        uint256 noOfTokensToBuy,
-        address payable tokenOwner
+        uint256 noOfItemsToBuy,
+        address payable itemOwner
     ) external payable {
-        // Get the unique identifier for the order set of the given item token.
+        // Get the unique identifier for the order set of the given item.
 
-        // Get the sell order set of the given item token.
+        // Get the sell order set of the given item.
         OrderSet.Set storage itemOrders = orders[orderId];
 
-        // Check if the token owner has a sell order for the given item.
-        if (!itemOrders.orderExistsForAddress(tokenOwner)) {
-            revert SteadyMarketplace__TokenIsNotListedForSaleByTheOwner();
+        // Check if the item owner has a sell order for the given item.
+        if (!itemOrders.orderExistsForAddress(itemOwner)) {
+            revert SteadyMarketplace__ItemIsNotListedForSaleByTheOwner();
         }
 
-        // Get the sell order for the given item by the token owner.
+        // Get the sell order for the given item by the item owner.
         OrderSet.SellOrder storage sellOrder = itemOrders.orderByAddress(
-            tokenOwner
+            itemOwner
         );
 
         // Validate that the required buy quantity is available for sale
-        if (sellOrder.quantity < noOfTokensToBuy) {
+        if (sellOrder.quantity < noOfItemsToBuy) {
             revert SteadyMarketplace__AttemptingToBuyMoreThanAvailableForSale();
         }
 
         // Validate that the buyer provided enough funds to make the purchase.
-        uint256 buyPrice = sellOrder.unitPrice.mul(noOfTokensToBuy);
+        uint256 buyPrice = sellOrder.unitPrice.mul(noOfItemsToBuy);
         if (msg.value < buyPrice) {
             revert SteadyMarketplace__LessETHProvidedForThePurchase();
         }
 
-        // Send the specified value of Ether from the buyer to the token owner
-        bool sent = tokenOwner.send(msg.value);
+        // Send the specified value of Ether from the buyer to the item owner
+        bool sent = itemOwner.send(msg.value);
         if (!sent) {
-            revert SteadyMarketplace__FailedToSendEtherToTheTokenOwner();
+            revert SteadyMarketplace__FailedToSendEtherToTheItemOwner();
         }
 
         /**
-         * Check if the quantity of tokens being sold in the sell order is equal to the number of tokens the buyer wants to purchase.
+         * Check if the quantity of items being sold in the sell order is equal to the number of items the buyer wants to purchase.
          * If true, it removes the sell order from the list of item orders.
-         * Otherwise, update the sell order by subtracting the number of tokens bought from the total quantity being sold.
+         * Otherwise, update the sell order by subtracting the number of items bought from the total quantity being sold.
          */
-        if (sellOrder.quantity == noOfTokensToBuy) {
+        if (sellOrder.quantity == noOfItemsToBuy) {
             itemOrders.remove(sellOrder);
         } else {
-            sellOrder.quantity -= noOfTokensToBuy;
+            sellOrder.quantity -= noOfItemsToBuy;
         }
 
         // Emit ItemSold event on successful purchase
         emit ItemSold(
-            tokenOwner,
+            itemOwner,
             _msgSender(),
             orderId,
-            noOfTokensToBuy,
+            noOfItemsToBuy,
             msg.value
         );
     }
 
     /**
-     * getOrders: This function retrieves the sell orders for the given token
+     * getOrders: This function retrieves the sell orders for the given item
      * @param orderId  - The ID of of the item
-     * @return An array of sell orders for the given token
+     * @return An array of sell orders for the given item
      */
     function getOrders(
         uint256 orderId
@@ -701,10 +726,10 @@ contract SteadyMarketplace is Context, Ownable {
     }
 
     /**
-     * getOrderByAddress: Get the SellOrder of a token for a given owner
+     * getOrderByAddress: Get the SellOrder of a item for a given owner
      * @param orderId the ID of the item
      * @param listedBy address of the owner
-     * @return Sell order of a token for the given owner
+     * @return Sell order of a item for the given owner
      */
     function getOrderByAddress(
         uint256 orderId,
@@ -724,10 +749,10 @@ contract SteadyMarketplace is Context, Ownable {
     }
 
     /**
-     * getOrdersByCategory: This function retrieves the sell orders for the given token and category
+     * getOrdersByCategory: This function retrieves the sell orders for the given item and category
      * @param orderId the ID of the item
-     * @param category category of the token
-     * @return An array of sell orders for the given token and category
+     * @param category category of the item
+     * @return An array of sell orders for the given item and category
      */
     function getOrdersByCategory(
         uint256 orderId,
@@ -737,11 +762,11 @@ contract SteadyMarketplace is Context, Ownable {
     }
 
     /**
-     * getOrdersByCategoryAndAddress: This function retrieves the sell orders for the given token, category and owner
+     * getOrdersByCategoryAndAddress: This function retrieves the sell orders for the given item, category and owner
      * @param orderId the ID of the item
-     * @param category category of the token
+     * @param category category of the item
      * @param listedBy address of the owner
-     * @return An array of sell orders for the given token, category and owner
+     * @return An array of sell orders for the given item, category and owner
      */
     function getOrdersByCategoryAndAddress(
         uint256 orderId,
@@ -753,7 +778,7 @@ contract SteadyMarketplace is Context, Ownable {
 
     /**
      * vendorWithdrawal function allows the vendor to withdraw their funds from their gains in the their associated stores
-     * @param storeAddress address of the store that holds the token
+     * @param storeAddress address of the store that holds the item
      * @param amount amount to be withdrawn
      */
     function vendorWithdrawal(
