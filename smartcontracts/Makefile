@@ -1,8 +1,26 @@
-compile:
-	npx hardhat compile
+# running local blockchain with hardhat
+local@network:
+	npx hardhat node
 
-test@contract:
-	npx hardhat test
+# forge commands
+
+forge@clean:
+	forge clean
+
+forge@update:
+	forge update
+
+forge@build:
+	forge build
+
+forge@format:
+	forge fmt
+
+forge@coverage:
+	forge coverage --report debug > coverage-report.txt
+
+forge@snapshot:
+	forge snapshot
 
 test@forge:
 	forge test
@@ -22,14 +40,16 @@ test@contract-gas:
 test@forge-gas:
 	forge test --gas-report
 
-local@network:
-	npx hardhat node
+# hardhat commands
 
-deploy@local:
+hardhat@compile:
+	npx hardhat compile
+
+hardhat-deploy@local:
 	npx hardhat run --network localhost scripts/deploy.ts
 
-deploy@network:
+hardhat-deploy@network:
 	npx hardhat run scripts/testDeploy.js --network ${NETWORK}
 
-verify@contract:
+hardhat-versify@contract:
 	npx hardhat verify --network ${NETWORK} --constructor-args ${ARG_FILENAME} ${ADDRESS}
