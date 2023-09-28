@@ -10,6 +10,8 @@ import {SteadyMarketplace} from "../../contracts/SteadyMarketplace.sol";
 import {OrderSet} from "../../contracts/libraries/OrderSet.sol";
 
 contract SteadyMarketplaceTest is Test {
+    error SteadyMarketplace__OnlyVendor();
+
     using OrderSet for OrderSet.Set;
 
     SteadyFormula steadyFormula;
@@ -18,6 +20,7 @@ contract SteadyMarketplaceTest is Test {
 
     address public vendorAddress = msg.sender;
     uint256 public vendorIdCounter = 1;
+    uint256 public storeIdCounter = 1;
 
     // Event when new vendor is created
     // Account address of the vendor
@@ -61,10 +64,10 @@ contract SteadyMarketplaceTest is Test {
         address vendorAddress,
         // store address of the vendor
         address storeAddress,
-        // Name of the vendor
-        string vendorName,
-        // Description of the vendor
-        string vendorDescription,
+        // Name of the store
+        string storeName,
+        // Description of the store
+        string storeDescription,
         // Category of the item
         OrderSet.Category category,
         // Date when the vendor was created
@@ -142,7 +145,9 @@ contract SteadyMarketplaceTest is Test {
         uint256 newDate = block.timestamp;
 
         steadyMarketplace.registerVendor{value: 100 ether}(
-            vendorName, vendorDescription, vendorBusinessRegistrationNumber
+            vendorName,
+            vendorDescription,
+            vendorBusinessRegistrationNumber
         );
 
         emit VendorCreated(
@@ -155,20 +160,25 @@ contract SteadyMarketplaceTest is Test {
             newDate
         );
 
-        uint256 id = steadyMarketplace.getVendorByAddress(vendorAddress).vendorId;
+        uint256 id = steadyMarketplace
+            .getVendorByAddress(vendorAddress)
+            .vendorId;
 
-        address addr = steadyMarketplace.getVendorByAddress(vendorAddress).vendorAddress;
+        address addr = steadyMarketplace
+            .getVendorByAddress(vendorAddress)
+            .vendorAddress;
 
-        string memory name = steadyMarketplace.getVendorByAddress(vendorAddress).vendorName;
+        string memory name = steadyMarketplace
+            .getVendorByAddress(vendorAddress)
+            .vendorName;
 
-        string memory description = steadyMarketplace.getVendorByAddress(vendorAddress).vendorDescription;
+        string memory description = steadyMarketplace
+            .getVendorByAddress(vendorAddress)
+            .vendorDescription;
 
-        string memory businessRegistrationNumber =
-            steadyMarketplace.getVendorByAddress(vendorAddress).vendorBusinessRegistrationNumber;
-
-        uint256 dateCreated = steadyMarketplace.getVendorByAddress(vendorAddress).dateCreated;
-
-        uint256 dateUpdated = steadyMarketplace.getVendorByAddress(vendorAddress).dateUpdated;
+        string memory businessRegistrationNumber = steadyMarketplace
+            .getVendorByAddress(vendorAddress)
+            .vendorBusinessRegistrationNumber;
 
         // assertion of the vendor creation
         assertEq(id, vendorIdCounter);
@@ -176,17 +186,20 @@ contract SteadyMarketplaceTest is Test {
         assertEq(name, vendorName);
         assertEq(description, vendorDescription);
         assertEq(businessRegistrationNumber, vendorBusinessRegistrationNumber);
-        assertEq(dateCreated, dateCreated);
-        assertEq(dateUpdated, dateUpdated);
 
         // Update the vendor
         string memory newVendorName = "Vendor 1 updated";
         string memory newVendorDescription = "Vendor 1 description updated";
-        string memory newVendorBusinessRegistrationNumber = "FT 1234567890 updated";
+        string
+            memory newVendorBusinessRegistrationNumber = "FT 1234567890 updated";
         uint256 newDateUpdated = block.timestamp;
 
         steadyMarketplace.updateVendor(
-            vendorAddress, vendorIdCounter, newVendorName, newVendorDescription, newVendorBusinessRegistrationNumber
+            vendorAddress,
+            vendorIdCounter,
+            newVendorName,
+            newVendorDescription,
+            newVendorBusinessRegistrationNumber
         );
 
         emit VendorUpdated(
@@ -198,11 +211,72 @@ contract SteadyMarketplaceTest is Test {
             newDateUpdated
         );
 
+        string memory storeName = "Store 1";
+        string memory storeDescription = "Store 1 description";
+        OrderSet.Category storeCategory = OrderSet.Category.Transportation;
+        uint256 stNewDate = block.timestamp;
+
+        steadyMarketplace.registerVendorStore(
+            storeName,
+            storeDescription,
+            storeCategory
+        );
+
+        emit VendorStoreCreated(
+            storeIdCounter,
+            vendorAddress,
+            address(steadyMarketplace),
+            storeName,
+            storeDescription,
+            storeCategory,
+            stNewDate,
+            stNewDate
+        );
+
+        address storeAddress = steadyMarketplace
+            .getVendorStoreByVendorAddress(vendorAddress)
+            .storeAddress;
+
+        console.log("storeAddress", storeAddress);
+
+        uint256 storeId = steadyMarketplace
+            .getVendorStoreByVendorAddress(vendorAddress)
+            .storeId;
+
+        console.log("storeId", storeId);
+
+        address vendorAddr = steadyMarketplace
+            .getVendorStoreByVendorAddress(vendorAddress)
+            .vendorAddress;
+
+        console.log("vendorAddr", vendorAddr);
+
+        string memory stName = steadyMarketplace
+            .getVendorStoreByVendorAddress(vendorAddress)
+            .storeName;
+
+        console.log("stName", stName);
+
+        string memory stDesc = steadyMarketplace
+            .getVendorStoreByVendorAddress(vendorAddress)
+            .storeDescription;
+
+        console.log("stDesc", stDesc);
+
+        OrderSet.Category stCat = steadyMarketplace
+            .getVendorStoreByVendorAddress(vendorAddress)
+            .category;
+
+        assertEq(storeId, storeIdCounter);
+        assertEq(vendorAddr, vendorAddress);
+        assertEq(stName, storeName);
+        assertEq(stDesc, storeDescription);
+        assertTrue(stCat == storeCategory);
+
         vm.stopPrank();
     }
 
-    function testVendorStoreMechanism() public {}
-
+    // this needs to be inside the vendor mechanism as well as only vendor and has store can call these functions
     function testCreateSellOrderMechanism() public {}
 
     function testCancelSellorderMechanism() public {}
