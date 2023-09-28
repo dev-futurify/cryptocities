@@ -3,7 +3,7 @@ pragma solidity 0.8.19;
 
 /*
  * @title SteadyEngine
- * @description This contract is the core of the SteadyCoin system. It handles all the logic
+ * @description: This contract is the core of the SteadyCoin system. It handles all the logic
  * for minting and redeeming STC, airdrops, as well as depositing and withdrawing based on
  * consumer price index and inflation rate sourced from the Steady Marketplace contract.
  * @author ricogustavo
@@ -16,6 +16,10 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SteadyCoin} from "./SteadyCoin.sol";
 import {SteadyMarketplace} from "./SteadyMarketplace.sol";
 
+/**
+ * @title ISteadyFormula
+ * @notice Interface for the SteadyFormula contract as we going to keep it upgradable
+ */
 interface ISteadyFormula {
     function getYearlyCPI() external view returns (uint256);
 
@@ -46,15 +50,25 @@ contract SteadyEngine is ReentrancyGuard {
     /// @dev Mapping of token address to price feed address
     mapping(address collateralToken => address priceFeed) private s_priceFeeds;
     /// @dev Amount of collateral deposited by user
-    mapping(address user => mapping(address collateralToken => uint256 amount)) private s_collateralDeposited;
+    mapping(address user => mapping(address collateralToken => uint256 amount))
+        private s_collateralDeposited;
     /// @dev Amount of STC minted by user
     mapping(address user => uint256 amount) private s_STCMinted;
     /// @dev If we know exactly how many tokens we have, we could make this immutable!
     address[] private s_collateralTokens;
 
-    event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
+    event CollateralDeposited(
+        address indexed user,
+        address indexed token,
+        uint256 indexed amount
+    );
 
-    event CollateralRedeemed(address indexed redeemFrom, address indexed redeemTo, address token, uint256 amount); // if redeemFrom != redeemedTo, then it was liquidated
+    event CollateralRedeemed(
+        address indexed redeemFrom,
+        address indexed redeemTo,
+        address token,
+        uint256 amount
+    ); // if redeemFrom != redeemedTo, then it was liquidated
 
     modifier onlyOwner() {
         if (msg.sender != i_marketplace.owner()) {
@@ -77,13 +91,17 @@ contract SteadyEngine is ReentrancyGuard {
         _;
     }
 
-    constructor(address stcAddress, address steadyMarketplaceAddress, address steadyFormulaAddress) {
+    constructor(
+        address stcAddress,
+        address steadyMarketplaceAddress,
+        address steadyFormulaAddress
+    ) {
         i_stc = SteadyCoin(stcAddress);
         i_marketplace = SteadyMarketplace(steadyMarketplaceAddress);
         i_formula = ISteadyFormula(steadyFormulaAddress);
     }
 
-    /*
+    /**
      * @param tokenCollateralAddress: The ERC20 token address of the collateral we're depositing
      * @param amountCollateral: The amount of collateral we're depositing
      * @param amountStcToMint: The amount of STC we want to mint
@@ -98,37 +116,47 @@ contract SteadyEngine is ReentrancyGuard {
         mintStc(amountStcToMint);
     }
 
-    /*
+    /**
      * @param tokenCollateralAddress: The ERC20 token address of the collateral we're depositing
      * @param amountCollateral: The amount of collateral we're depositing
      * @param amountStcToBurn: The amount of STC we want to burn
      * @notice This function will withdraw your collateral and burn STC in one transaction
      */
-    function redeemCollateralForStc(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountStcToBurn)
-        external
-        moreThanZero(amountCollateral)
-    {
+    function redeemCollateralForStc(
+        address tokenCollateralAddress,
+        uint256 amountCollateral,
+        uint256 amountStcToBurn
+    ) external moreThanZero(amountCollateral) {
         _burnStc(amountStcToBurn, msg.sender, msg.sender);
-        _redeemCollateral(tokenCollateralAddress, amountCollateral, msg.sender, msg.sender);
+        _redeemCollateral(
+            tokenCollateralAddress,
+            amountCollateral,
+            msg.sender,
+            msg.sender
+        );
         revertIfHealthFactorIsBroken(msg.sender);
     }
 
-    /*
+    /**
      * @param tokenCollateralAddress: The ERC20 token address of the collateral we're redeeming
      * @param amountCollateral: The amount of collateral we're redeeming
      * @notice This function will redeem your collateral.
      * @notice If we have STC minted, we will not be able to redeem until we burn your STC
      */
-    function redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral)
-        external
-        moreThanZero(amountCollateral)
-        nonReentrant
-    {
-        _redeemCollateral(tokenCollateralAddress, amountCollateral, msg.sender, msg.sender);
+    function redeemCollateral(
+        address tokenCollateralAddress,
+        uint256 amountCollateral
+    ) external moreThanZero(amountCollateral) nonReentrant {
+        _redeemCollateral(
+            tokenCollateralAddress,
+            amountCollateral,
+            msg.sender,
+            msg.sender
+        );
         revertIfHealthFactorIsBroken(msg.sender);
     }
 
-    /*
+    /**
      * @notice careful! You'll burn your STC here! Make sure we want to do this...
      * @dev we might want to use this if we're nervous we might get liquidated and want to just burn
      * we STC but keep your collateral in.
@@ -138,11 +166,13 @@ contract SteadyEngine is ReentrancyGuard {
         revertIfHealthFactorIsBroken(msg.sender);
     }
 
-    /*
+    /**
      * @param amountStcToMint: The amount of STC we want to mint
-     * You can only mint STC if we hav enough collateral
+     * @notice You can only mint STC if we hav enough collateral
      */
-    function mintStc(uint256 amountStcToMint) public moreThanZero(amountStcToMint) nonReentrant {
+    function mintStc(
+        uint256 amountStcToMint
+    ) public moreThanZero(amountStcToMint) nonReentrant {
         s_STCMinted[msg.sender] += amountStcToMint;
         revertIfHealthFactorIsBroken(msg.sender);
         bool minted = i_stc.mint(msg.sender, amountStcToMint);
@@ -152,13 +182,16 @@ contract SteadyEngine is ReentrancyGuard {
         }
     }
 
-    /*
+    /**
      * @param recipients: The addresses of the recipients of the airdrop
      * @param amounts: The amounts of STC to airdrop to each recipient
      * @notice This function will mint STC and transfer to the recipients
      * when Inflation Rate threshold are met.
      */
-    function airdropStc(address[] memory recipients, uint256[] memory amounts) external nonReentrant {
+    function airdropStc(
+        address[] memory recipients,
+        uint256[] memory amounts
+    ) external nonReentrant {
         // mint the STC and transfer to the receipients
         for (uint256 i = 0; i < recipients.length; i++) {
             s_STCMinted[recipients[i]] += amounts[i];
@@ -169,39 +202,86 @@ contract SteadyEngine is ReentrancyGuard {
         }
     }
 
-    /*
+    /**
      * @param tokenCollateralAddress: The ERC20 token address of the collateral we're depositing
      * @param amountCollateral: The amount of collateral we're depositing
      */
-    function depositCollateral(address tokenCollateralAddress, uint256 amountCollateral)
+    function depositCollateral(
+        address tokenCollateralAddress,
+        uint256 amountCollateral
+    )
         public
         moreThanZero(amountCollateral)
         nonReentrant
         isAllowedToken(tokenCollateralAddress)
     {
-        s_collateralDeposited[msg.sender][tokenCollateralAddress] += amountCollateral;
-        emit CollateralDeposited(msg.sender, tokenCollateralAddress, amountCollateral);
-        bool success = IERC20(tokenCollateralAddress).transferFrom(msg.sender, address(this), amountCollateral);
+        s_collateralDeposited[msg.sender][
+            tokenCollateralAddress
+        ] += amountCollateral;
+        emit CollateralDeposited(
+            msg.sender,
+            tokenCollateralAddress,
+            amountCollateral
+        );
+        bool success = IERC20(tokenCollateralAddress).transferFrom(
+            msg.sender,
+            address(this),
+            amountCollateral
+        );
         if (!success) {
             revert SteadyEngine__TransferFailed();
         }
     }
 
-    function _redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral, address from, address to)
-        private
-    {
+    /**
+     * @param tokenCollateralAddress: The ERC20 token address of the collateral we're redeeming
+     * @param amountCollateral: The amount of collateral we're redeeming
+     * @param from: The address of the user we're redeeming from
+     * @param to: The address of the user we're redeeming to
+     * @notice This function will redeem your collateral.
+     * @notice If we have STC minted, we will not be able to redeem until we burn your STC
+     */
+
+    function _redeemCollateral(
+        address tokenCollateralAddress,
+        uint256 amountCollateral,
+        address from,
+        address to
+    ) private {
         s_collateralDeposited[from][tokenCollateralAddress] -= amountCollateral;
-        emit CollateralRedeemed(from, to, tokenCollateralAddress, amountCollateral);
-        bool success = IERC20(tokenCollateralAddress).transfer(to, amountCollateral);
+        emit CollateralRedeemed(
+            from,
+            to,
+            tokenCollateralAddress,
+            amountCollateral
+        );
+        bool success = IERC20(tokenCollateralAddress).transfer(
+            to,
+            amountCollateral
+        );
         if (!success) {
             revert SteadyEngine__TransferFailed();
         }
     }
 
-    function _burnStc(uint256 amountStcToBurn, address onBehalfOf, address stcFrom) private {
+    /**
+     * @param amountStcToBurn: The amount of STC we want to burn
+     * @param onBehalfOf: The address of the user we're burning STC for
+     * @param stcFrom: The address of the user we're burning STC from
+     * @notice This function will burn STC from the user and transfer to the address(0)
+     */
+    function _burnStc(
+        uint256 amountStcToBurn,
+        address onBehalfOf,
+        address stcFrom
+    ) private {
         s_STCMinted[onBehalfOf] -= amountStcToBurn;
 
-        bool success = i_stc.transferFrom(stcFrom, address(this), amountStcToBurn);
+        bool success = i_stc.transferFrom(
+            stcFrom,
+            address(this),
+            amountStcToBurn
+        );
         // This conditional is hypothetically unreachable
         if (!success) {
             revert SteadyEngine__TransferFailed();
@@ -209,30 +289,45 @@ contract SteadyEngine is ReentrancyGuard {
         i_stc.burn(amountStcToBurn);
     }
 
-    function _getAccountInformation(address user)
-        private
-        view
-        returns (uint256 totalDscMinted, uint256 collateralValue)
-    {
+    function _getAccountInformation(
+        address user
+    ) private view returns (uint256 totalDscMinted, uint256 collateralValue) {
         totalDscMinted = s_STCMinted[user];
         collateralValue = getAccountCollateralValue(user);
     }
 
     function _healthFactor(address user) private view returns (uint256) {
-        (uint256 totalDscMinted, uint256 collateralValue) = _getAccountInformation(user);
+        (
+            uint256 totalDscMinted,
+            uint256 collateralValue
+        ) = _getAccountInformation(user);
         return _calculateHealthFactor(totalDscMinted, collateralValue);
     }
 
-    function _calculateHealthFactor(uint256 totalDscMinted, uint256 collateralValue) internal pure returns (uint256) {
+    function _calculateHealthFactor(
+        uint256 totalDscMinted,
+        uint256 collateralValue
+    ) internal pure returns (uint256) {
         if (totalDscMinted == 0) return type(uint256).max;
-        uint256 collateralAdjustedForThreshold = (collateralValue * LIQUIDATION_THRESHOLD) / 100;
+        uint256 collateralAdjustedForThreshold = (collateralValue *
+            LIQUIDATION_THRESHOLD) / 100;
         return (collateralAdjustedForThreshold * 1e18) / totalDscMinted;
     }
 
+    /**
+     * _getYearlyCPI is a private function that returns the yearly consumer price index of the Steady Economy from
+     * the Steady Formula contract.
+     * @return uint256 The yearly consumer price index of the Steady Economy
+     */
     function _getYearlyCPI() private view returns (uint256) {
         return i_formula.getYearlyCPI();
     }
 
+    /**
+     * _getYearlyInflationRate is a private function that returns the yearly inflation rate of the Steady Economy
+     * from the Steady Formula contract.
+     * @return uint256 The yearly inflation rate of the Steady Economy
+     */
     function _getYearlyInflationRate() private view returns (uint256) {
         return i_formula.getYearlyInflationRate();
     }
@@ -244,29 +339,42 @@ contract SteadyEngine is ReentrancyGuard {
         }
     }
 
-    function calculateHealthFactor(uint256 totalDscMinted, uint256 collateralValue) external pure returns (uint256) {
+    function calculateHealthFactor(
+        uint256 totalDscMinted,
+        uint256 collateralValue
+    ) external pure returns (uint256) {
         return _calculateHealthFactor(totalDscMinted, collateralValue);
     }
 
-    function getAccountInformation(address user)
-        external
-        view
-        returns (uint256 totalDscMinted, uint256 collateralValue)
-    {
+    function getAccountInformation(
+        address user
+    ) external view returns (uint256 totalDscMinted, uint256 collateralValue) {
         return _getAccountInformation(user);
     }
 
-    function getCollateralBalanceOfUser(address user, address token) external view returns (uint256) {
+    function getCollateralBalanceOfUser(
+        address user,
+        address token
+    ) external view returns (uint256) {
         return s_collateralDeposited[user][token];
     }
 
-    function getAccountCollateralValue(address user) public view returns (uint256 totalCollateralValue) {
+    /**
+     * getAccountCollateralValue calculates the value of the collateral deposited by the user based on the
+     * collateral token price and the yearly CPI and inflation rate of the Steady Economy.
+     * @param user address of the user
+     * @return totalCollateralValue the value of the collateral deposited by the user
+     */
+    function getAccountCollateralValue(
+        address user
+    ) public view returns (uint256 totalCollateralValue) {
         for (uint256 index = 0; index < s_collateralTokens.length; index++) {
             address token = s_collateralTokens[index];
             uint256 amount = s_collateralDeposited[user][token];
             uint256 cpiChange = _getYearlyCPI();
             uint256 inflationRate = _getYearlyInflationRate();
-            uint256 adjustedCollateralValue = (((amount * (100 + cpiChange)) / 100) * (100 + inflationRate)) / 100;
+            uint256 adjustedCollateralValue = (((amount * (100 + cpiChange)) /
+                100) * (100 + inflationRate)) / 100;
             totalCollateralValue += adjustedCollateralValue;
         }
         return totalCollateralValue;
@@ -304,7 +412,9 @@ contract SteadyEngine is ReentrancyGuard {
         return address(i_stc);
     }
 
-    function getCollateralTokenPriceFeed(address token) external view returns (address) {
+    function getCollateralTokenPriceFeed(
+        address token
+    ) external view returns (address) {
         return s_priceFeeds[token];
     }
 
