@@ -13,8 +13,8 @@ pragma solidity ^0.8.19;
 
 library OrderSet {
     error OrderSetLib__SellOrderCannotBeListedByZeroAddress();
-    error OrderSetLib__SellOrderCannotHaveZeroTokenCount();
-    error OrderSetLib__SellOrderCannotHaveZeroTokenPrice();
+    error OrderSetLib__SellOrderCannotHaveZeroItemCount();
+    error OrderSetLib__SellOrderCannotHaveZeroItemPrice();
     error OrderSetLib__KeyAlreadyExistsInSet();
     error OrderSetLib__CategoryMustBeBetween0And7();
     error OrderSetLib__DateSoldMustBeBlockTimestamp();
@@ -39,12 +39,11 @@ library OrderSet {
         _;
     }
 
-    // SellOrder structure representing a sell order, containing the address of the seller, the quantity of tokens being sold, and the unit price of the tokens.
-    // TODO: connect vendor and vendor store in SellOrder
+    // SellOrder structure representing a sell order, containing the address of the seller, the quantity of items being sold, and the unit price of the items.
     struct SellOrder {
-        address listedBy; // Address of the seller
-        uint256 quantity; // Quantity of tokens being sold
-        uint256 unitPrice; // Unit price of the tokens
+        address storeAddress; // Address of the seller
+        uint256 quantity; // Quantity of items being sold
+        uint256 unitPrice; // Unit price of the items
         Category category; // Category of the sell order
         uint256 dateSold; // Date the sell order was created
     }
@@ -61,18 +60,18 @@ library OrderSet {
         SellOrder memory key
     ) internal validCategory(Category(key.category)) {
         // Check if the seller address is address(0), which is not allowed.
-        if (key.listedBy == address(0)) {
+        if (key.storeAddress == address(0)) {
             revert OrderSetLib__SellOrderCannotBeListedByZeroAddress();
         }
 
-        // Check if the quantity of tokens being sold is greater than 0.
+        // Check if the quantity of items being sold is greater than 0.
         if (key.quantity <= 0) {
-            revert OrderSetLib__SellOrderCannotHaveZeroTokenCount();
+            revert OrderSetLib__SellOrderCannotHaveZeroItemCount();
         }
 
-        // Check if the unit price of the tokens is greater than 0.
+        // Check if the unit price of the items is greater than 0.
         if (key.unitPrice <= 0) {
-            revert OrderSetLib__SellOrderCannotHaveZeroTokenPrice();
+            revert OrderSetLib__SellOrderCannotHaveZeroItemPrice();
         }
 
         // Check if the SellOrder is already in the Set.
@@ -93,7 +92,7 @@ library OrderSet {
         // If all checks pass, add the SellOrder to the keyList array.
         self.keyList.push(key);
         // Update the keyPointers mapping with the index of the newly added SellOrder.
-        self.keyPointers[key.listedBy] = self.keyList.length - 1;
+        self.keyPointers[key.storeAddress] = self.keyList.length - 1;
     }
 
     function remove(
@@ -108,14 +107,14 @@ library OrderSet {
         SellOrder memory keyToMove = self.keyList[count(self) - 1];
 
         // Get the row number in keyList that corresponds to the sell order being removed
-        uint256 rowToReplace = self.keyPointers[key.listedBy];
+        uint256 rowToReplace = self.keyPointers[key.storeAddress];
 
         // Replace the sell order being removed with the last sell order in the keyList
-        self.keyPointers[keyToMove.listedBy] = rowToReplace;
+        self.keyPointers[keyToMove.storeAddress] = rowToReplace;
         self.keyList[rowToReplace] = keyToMove;
 
         // Delete the sell order being removed from the keyPointers mapping
-        delete self.keyPointers[key.listedBy];
+        delete self.keyPointers[key.storeAddress];
 
         // Pop the last sell order from the keyList
         self.keyList.pop();
@@ -143,24 +142,24 @@ library OrderSet {
         SellOrder memory key
     ) internal view returns (bool) {
         if (self.keyList.length == 0) return false;
-        SellOrder storage o = self.keyList[self.keyPointers[key.listedBy]];
-        return (o.listedBy == key.listedBy);
+        SellOrder storage o = self.keyList[self.keyPointers[key.storeAddress]];
+        return (o.storeAddress == key.storeAddress);
     }
 
     /**
      * Check if a sell order has been listed by a specific address
      *
      * @param self Set The set of sell orders
-     * @param listedBy address The address to check for sell orders
+     * @param storeAddress address The address to check for sell orders
      * @return bool True if the address has listed a sell order, false otherwise
      */
     function orderExistsForAddress(
         Set storage self,
-        address listedBy
+        address storeAddress
     ) internal view returns (bool) {
         if (self.keyList.length == 0) return false;
-        SellOrder storage o = self.keyList[self.keyPointers[listedBy]];
-        return (o.listedBy == listedBy);
+        SellOrder storage o = self.keyList[self.keyPointers[storeAddress]];
+        return (o.storeAddress == storeAddress);
     }
 
     /**
@@ -181,27 +180,27 @@ library OrderSet {
      * Get the sell order listed by a specific address
      *
      * @param self Set The set of sell orders
-     * @param listedBy address The address that listed the sell order to retrieve
+     * @param storeAddress address The address that listed the sell order to retrieve
      * @return SellOrder The sell order listed by the specified address
      */
     function orderByAddress(
         Set storage self,
-        address listedBy
+        address storeAddress
     ) internal view returns (SellOrder storage) {
-        return self.keyList[self.keyPointers[listedBy]];
+        return self.keyList[self.keyPointers[storeAddress]];
     }
 
     /**
      * Get the sell order listed by a specific address and category
      *
      * @param self Set The set of sell orders
-     * @param listedBy address The address that listed the sell order to retrieve
+     * @param storeAddress address The address that listed the sell order to retrieve
      * @param category uint8 The category of the sell order to retrieve
      * @return SellOrder The sell order listed by the specified address and category
      */
     function ordersByAddressAndCategory(
         Set storage self,
-        address listedBy,
+        address storeAddress,
         Category category
     ) internal view validCategory(category) returns (SellOrder[] memory) {
         SellOrder[] memory matchingOrders;
@@ -209,7 +208,7 @@ library OrderSet {
 
         for (uint256 i = 0; i < self.keyList.length; i++) {
             if (
-                self.keyList[i].listedBy == listedBy &&
+                self.keyList[i].storeAddress == storeAddress &&
                 Category(self.keyList[i].category) == category
             ) {
                 matchingOrders[iCount] = self.keyList[i];

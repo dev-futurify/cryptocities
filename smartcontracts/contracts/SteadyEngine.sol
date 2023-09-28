@@ -3,7 +3,7 @@ pragma solidity 0.8.19;
 
 /*
  * @title SteadyEngine
- * @description This contract is the core of the SteadyCoin system. It handles all the logic
+ * @description: This contract is the core of the SteadyCoin system. It handles all the logic
  * for minting and redeeming STC, airdrops, as well as depositing and withdrawing based on
  * consumer price index and inflation rate sourced from the Steady Marketplace contract.
  * @author ricogustavo
@@ -16,6 +16,10 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SteadyCoin} from "./SteadyCoin.sol";
 import {SteadyMarketplace} from "./SteadyMarketplace.sol";
 
+/**
+ * @title ISteadyFormula
+ * @notice Interface for the SteadyFormula contract as we going to keep it upgradable
+ */
 interface ISteadyFormula {
     function getYearlyCPI() external view returns (uint256);
 
@@ -58,6 +62,7 @@ contract SteadyEngine is ReentrancyGuard {
         address indexed token,
         uint256 indexed amount
     );
+
     event CollateralRedeemed(
         address indexed redeemFrom,
         address indexed redeemTo,
@@ -96,7 +101,7 @@ contract SteadyEngine is ReentrancyGuard {
         i_formula = ISteadyFormula(steadyFormulaAddress);
     }
 
-    /*
+    /**
      * @param tokenCollateralAddress: The ERC20 token address of the collateral we're depositing
      * @param amountCollateral: The amount of collateral we're depositing
      * @param amountStcToMint: The amount of STC we want to mint
@@ -111,7 +116,7 @@ contract SteadyEngine is ReentrancyGuard {
         mintStc(amountStcToMint);
     }
 
-    /*
+    /**
      * @param tokenCollateralAddress: The ERC20 token address of the collateral we're depositing
      * @param amountCollateral: The amount of collateral we're depositing
      * @param amountStcToBurn: The amount of STC we want to burn
@@ -132,7 +137,7 @@ contract SteadyEngine is ReentrancyGuard {
         revertIfHealthFactorIsBroken(msg.sender);
     }
 
-    /*
+    /**
      * @param tokenCollateralAddress: The ERC20 token address of the collateral we're redeeming
      * @param amountCollateral: The amount of collateral we're redeeming
      * @notice This function will redeem your collateral.
@@ -151,19 +156,19 @@ contract SteadyEngine is ReentrancyGuard {
         revertIfHealthFactorIsBroken(msg.sender);
     }
 
-    /*
+    /**
      * @notice careful! You'll burn your STC here! Make sure we want to do this...
      * @dev we might want to use this if we're nervous we might get liquidated and want to just burn
      * we STC but keep your collateral in.
      */
     function burnStc(uint256 amount) external moreThanZero(amount) {
         _burnStc(amount, msg.sender, msg.sender);
-        revertIfHealthFactorIsBroken(msg.sender); // I don't think this would ever hit...
+        revertIfHealthFactorIsBroken(msg.sender);
     }
 
-    /*
+    /**
      * @param amountStcToMint: The amount of STC we want to mint
-     * You can only mint STC if we hav enough collateral
+     * @notice You can only mint STC if we hav enough collateral
      */
     function mintStc(
         uint256 amountStcToMint
@@ -177,7 +182,7 @@ contract SteadyEngine is ReentrancyGuard {
         }
     }
 
-    /*
+    /**
      * @param recipients: The addresses of the recipients of the airdrop
      * @param amounts: The amounts of STC to airdrop to each recipient
      * @notice This function will mint STC and transfer to the recipients
@@ -197,7 +202,7 @@ contract SteadyEngine is ReentrancyGuard {
         }
     }
 
-    /*
+    /**
      * @param tokenCollateralAddress: The ERC20 token address of the collateral we're depositing
      * @param amountCollateral: The amount of collateral we're depositing
      */
@@ -228,6 +233,15 @@ contract SteadyEngine is ReentrancyGuard {
         }
     }
 
+    /**
+     * @param tokenCollateralAddress: The ERC20 token address of the collateral we're redeeming
+     * @param amountCollateral: The amount of collateral we're redeeming
+     * @param from: The address of the user we're redeeming from
+     * @param to: The address of the user we're redeeming to
+     * @notice This function will redeem your collateral.
+     * @notice If we have STC minted, we will not be able to redeem until we burn your STC
+     */
+
     function _redeemCollateral(
         address tokenCollateralAddress,
         uint256 amountCollateral,
@@ -250,6 +264,12 @@ contract SteadyEngine is ReentrancyGuard {
         }
     }
 
+    /**
+     * @param amountStcToBurn: The amount of STC we want to burn
+     * @param onBehalfOf: The address of the user we're burning STC for
+     * @param stcFrom: The address of the user we're burning STC from
+     * @notice This function will burn STC from the user and transfer to the address(0)
+     */
     function _burnStc(
         uint256 amountStcToBurn,
         address onBehalfOf,
@@ -294,10 +314,20 @@ contract SteadyEngine is ReentrancyGuard {
         return (collateralAdjustedForThreshold * 1e18) / totalDscMinted;
     }
 
+    /**
+     * _getYearlyCPI is a private function that returns the yearly consumer price index of the Steady Economy from
+     * the Steady Formula contract.
+     * @return uint256 The yearly consumer price index of the Steady Economy
+     */
     function _getYearlyCPI() private view returns (uint256) {
         return i_formula.getYearlyCPI();
     }
 
+    /**
+     * _getYearlyInflationRate is a private function that returns the yearly inflation rate of the Steady Economy
+     * from the Steady Formula contract.
+     * @return uint256 The yearly inflation rate of the Steady Economy
+     */
     function _getYearlyInflationRate() private view returns (uint256) {
         return i_formula.getYearlyInflationRate();
     }
@@ -329,6 +359,12 @@ contract SteadyEngine is ReentrancyGuard {
         return s_collateralDeposited[user][token];
     }
 
+    /**
+     * getAccountCollateralValue calculates the value of the collateral deposited by the user based on the
+     * collateral token price and the yearly CPI and inflation rate of the Steady Economy.
+     * @param user address of the user
+     * @return totalCollateralValue the value of the collateral deposited by the user
+     */
     function getAccountCollateralValue(
         address user
     ) public view returns (uint256 totalCollateralValue) {
@@ -344,7 +380,6 @@ contract SteadyEngine is ReentrancyGuard {
         return totalCollateralValue;
     }
 
-    // change the contract address of the formula and only the owner can call this function
     function changeFormulaAddress(address newAddress) external onlyOwner {
         i_formula = ISteadyFormula(newAddress);
     }
